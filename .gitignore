@@ -1,0 +1,11 @@
+# [자동 생성/개인 데이터] GitHub에 올라가면 안 되는 파일들입니다.
+# 이 목록에 있는 것들은 커밋하지 마세요 (특히 config.json - 텔레그램 토큰이 들어있습니다!)
+config.json
+tester_config.json
+error_log.txt
+log_history.txt
+macro_history.txt
+snapshots/
+__pycache__/
+_update_temp/
+_tester_temp_capture.png

@@ -1,0 +1,14 @@
+# 새 PC에 설치할 때: pip install -r requirements.txt
+pyautogui
+pywin32
+pynput
+pillow
+requests
+pyserial
+opencv-python
+paho-mqtt
+
+# [중요] opencv-python이 없으면 pyautogui의 confidence(임계값) 기능이 아예 동작하지 않습니다.
+# 캐릭터 전환/거래소/골드 확인 등 이 프로그램의 거의 모든 이미지 인식이 confidence를 쓰기
+# 때문에, 이게 없으면 이미지가 화면에 있어도 "못 찾음"으로만 나옵니다. 예전엔 이걸 선택
+# 사항으로 잘못 분류해뒀었는데, 사실상 필수 항목입니다.

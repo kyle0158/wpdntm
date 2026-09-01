@@ -1,0 +1,12 @@
+{
+  "timeout_sec": 5.0,
+  "tolerance": 15,
+  "transwhite_tolerance": 15,
+  "stuck_threshold": 3,
+  "telegram_bot_token": "8434542280:AAEwanzQSATYccdZ0A7d0daI5IAuJMQrK58",
+  "telegram_chat_id": "6100330454",
+  "telegram_pc_name": "1",
+  "telegram_send_interval": 2.5,
+  "telegram_event_stuck_enabled": true,
+  "telegram_event_stuck_count": 2
+}
