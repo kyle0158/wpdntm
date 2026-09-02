@@ -27,6 +27,13 @@ from zeus_constants import (
     ZEUS_POTION_CLICKS, ZEUS_POTION_DOUBLE_CLICK, ZEUS_POTION_LAST_CLICK,
     ZEUS_POTION_CLICK_DELAY_SEC, ZEUS_POTION_VERIFY_WAIT_SEC,
     ZEUS_POTION_VERIFY_IMG, ZEUS_POTION_VERIFY_REGION,
+    ZEUS_TOWER_TRIGGER_IMG, ZEUS_TOWER_TRIGGER_REGION,
+    ZEUS_TOWER_CLICK1, ZEUS_TOWER_CLICK2, ZEUS_TOWER_CLICK_DELAY_SEC,
+    ZEUS_TOWER_SCREEN_IMG, ZEUS_TOWER_SCREEN_REGION,
+    ZEUS_TOWER_OBSTACLE_IMG, ZEUS_TOWER_OBSTACLE_REGION, ZEUS_TOWER_OBSTACLE_POLL_SEC,
+    ZEUS_TOWER_ENTER_CLICK,
+    ZEUS_TOWER_EXIT_IMG1, ZEUS_TOWER_EXIT_IMG2, ZEUS_TOWER_EXIT_REGION, ZEUS_TOWER_EXIT_POLL_SEC,
+    ZEUS_TOWER_FINISH_CLICK, ZEUS_TOWER_FINISH_GAP_SEC,
     ZEUS_FPDLSWJ_IMG, ZEUS_FPDLSWJ_REGION, ZEUS_FPDLSWJ_STEP2, ZEUS_FPDLSWJ_STEP3,
     ZEUS_FPDLSWJ_WAIT_SEC,
     ZEUS_AUTOBUY_IMG, ZEUS_AUTOBUY_REGION, ZEUS_AUTOBUY_CLICKS,
@@ -34,6 +41,14 @@ from zeus_constants import (
     ZEUS_AUTOBUY_REPEAT_DELAY_SEC, ZEUS_AUTOBUY_REPEAT_MAX,
     ZEUS_SKILLBOOK_IMG, ZEUS_SKILLBOOK_REGION, ZEUS_SKILLBOOK_CLICKS,
     ZEUS_RAID_GATE_IMG, ZEUS_RAID_GATE_REGION,
+    ZEUS_TOWER_TRIGGER_IMG, ZEUS_TOWER_TRIGGER_REGION,
+    ZEUS_TOWER_STEP1, ZEUS_TOWER_STEP2,
+    ZEUS_TOWER_SCREEN_IMG, ZEUS_TOWER_SCREEN_REGION,
+    ZEUS_TOWER_POPUP_IMG, ZEUS_TOWER_POPUP_REGION, ZEUS_TOWER_POPUP_RECHECK_DELAY_SEC,
+    ZEUS_TOWER_ENTER_CLICK,
+    ZEUS_TOWER_EXIT_CHECK1_IMG, ZEUS_TOWER_EXIT_CHECK1_REGION,
+    ZEUS_TOWER_EXIT_CHECK2_IMG, ZEUS_TOWER_EXIT_CHECK2_REGION, ZEUS_TOWER_EXIT_POLL_SEC,
+    ZEUS_TOWER_FINISH_CLICK,
     ZEUS_SUBQUEST_GATE_IMG, ZEUS_SUBQUEST_GATE_REGION_NORMAL, ZEUS_SUBQUEST_GATE_REGION_RAID,
     ZEUS_SUBQUEST_CHECK_IMG, ZEUS_SUBQUEST_CHECK_REGION_NORMAL, ZEUS_SUBQUEST_CHECK_REGION_RAID,
     ZEUS_SUBQUEST_CLICK_NORMAL, ZEUS_SUBQUEST_CLICK_RAID,
@@ -99,7 +114,8 @@ class MacroLogicMixin:
              없으면 귀환로직부터 처리 (최우선 안전 체크. 로딩 중엔 건너뜀)
           1) SIMPLE_CLICK_IMAGES / OFFSET_CLICK_IMAGES / CONDITIONAL_CLICK_IMAGES
              (각 리스트 순서대로) / fpdlswj.png / wkehdrnao.png / tmzlfqnr.png /
-             anfdir0ro.png(물약구매) - 있으면 즉시 클릭(연속 동작 이미지는 시퀀스 수행)
+             anfdir0ro.png(물약구매) / angksdmlxkq5cmd.png(무한의탑) - 있으면 즉시
+             클릭(연속 동작 이미지는 시퀀스 수행)
              (gkdl.png/dpvlrwlsgod.png 여부와 무관)
           1.5) 위가 다 없으면 fpdlem.png(레이드) 확인 - 있으면 서브퀘스트 생략. 없으면
                서브퀘스트(tjqmznptmxm.png) 확인. 있으면 이번 턴은 서브퀘스트만 처리하고
@@ -224,6 +240,14 @@ class MacroLogicMixin:
             else:
                 self.log("- anfdir0ro 재확인 실패 - 물약구매 취소, 계속 진행")
                 now = time.time()  # 4초를 대기했으니, 이후 타임아웃 계산을 위해 시각을 다시 잽니다.
+
+        # angksdmlxkq5cmd.png(무한의 탑 트리거) - 발견되면 무한의 탑 로직 전체를 수행합니다.
+        box = image_search.locate_smart(ZEUS_TOWER_TRIGGER_IMG, ZEUS_TOWER_TRIGGER_REGION,
+                                         tolerance=tol, transwhite_tolerance=tw_tol)
+        if box:
+            self._handle_tower_sequence()
+            self._mark_activity()
+            return
 
         # [레이드 게이트] fpdlem.png(레이드) 여부에 따라 서브퀘스트(tjqm/tjqmznptmxm)를
         # 검색할 영역만 바꿉니다 (로직 자체는 그대로 - 생략하지 않습니다). 레이드 중엔
@@ -489,6 +513,79 @@ class MacroLogicMixin:
             self.log("- ⚠ anfdiron을 못 찾았습니다 - 물약구매가 제대로 안 됐을 수 있습니다 "
                      "(일단 정상 흐름으로 계속 진행합니다)")
         self.log("- 물약구매 로직 종료")
+
+    def _handle_tower_sequence(self):
+        """angksdmlxkq5cmd.png 발견 시 '무한의 탑' 전체 흐름을 수행합니다:
+          1) (1225,65) 클릭 -> 2초 대기 -> (885,665) 클릭 -> 2초 대기 (탑 화면 진입)
+          2) dusthrwlsgodcpzm.png가 있으면 좌상단 클릭하고 사라질 때까지 반복
+          3) dlqwkd.png 클릭 -> 2초 대기 -> (733,500) 클릭 (입장 완료)
+          4) dpvlrznptmxm.png 또는 tjqmznptmxm.png가 보일 때까지 대기 (일반필드 복귀 확인)
+          5) (1000,160) 더블클릭 -> 2초 대기 -> 다시 더블클릭 (종료)
+        """
+        self.log("- angksdmlxkq5cmd 발견 -> 무한의 탑 로직 시작")
+        tol = self.get_tolerance()
+        tw_tol = self.get_transwhite_tolerance()
+
+        self._click_point_jittered(*ZEUS_TOWER_CLICK1)
+        self.log(f"  {ZEUS_TOWER_CLICK1} 클릭 완료")
+        self._sleep_interruptible(ZEUS_TOWER_CLICK_DELAY_SEC)
+        if self.state == "IDLE":
+            return
+
+        self._click_point_jittered(*ZEUS_TOWER_CLICK2)
+        self.log(f"  {ZEUS_TOWER_CLICK2} 클릭 완료")
+        self._sleep_interruptible(ZEUS_TOWER_CLICK_DELAY_SEC)
+        if self.state == "IDLE":
+            return
+
+        # [장애물 제거] dusthrwlsgodcpzm.png가 있으면 좌상단을 클릭(자동으로 마우스도
+        # 치워짐)하고, 사라질 때까지 반복해서 재확인합니다.
+        while self.state != "IDLE":
+            box = image_search.locate_smart(ZEUS_TOWER_OBSTACLE_IMG, ZEUS_TOWER_OBSTACLE_REGION,
+                                             tolerance=tol, transwhite_tolerance=tw_tol)
+            if not box:
+                break
+            self._click_point_jittered(box.left, box.top)
+            self.log("- dusthrwlsgodcpzm 발견 -> 좌상단 클릭")
+            self._sleep_interruptible(ZEUS_TOWER_OBSTACLE_POLL_SEC)
+        if self.state == "IDLE":
+            return
+
+        # [입장] dlqwkd.png 클릭 -> 2초 대기 -> (733,500) 클릭
+        box = image_search.locate_smart(ZEUS_TOWER_SCREEN_IMG, ZEUS_TOWER_SCREEN_REGION,
+                                         tolerance=tol, transwhite_tolerance=tw_tol)
+        if box:
+            self._click_box_jittered(box)
+            self.log("- dlqwkd 클릭")
+        else:
+            self.log("- ⚠ dlqwkd을 못 찾았습니다 - 그래도 입장 클릭은 진행합니다")
+        self._sleep_interruptible(ZEUS_TOWER_CLICK_DELAY_SEC)
+        if self.state == "IDLE":
+            return
+        self._click_point_jittered(*ZEUS_TOWER_ENTER_CLICK)
+        self.log(f"- {ZEUS_TOWER_ENTER_CLICK} 클릭 -> 입장 완료")
+
+        # [퇴장 대기] dpvlrznptmxm.png 또는 tjqmznptmxm.png가 보일 때까지 대기합니다.
+        # 탑 체류시간이 정해져 있지 않아서, 정지 버튼이 눌릴 때까지 계속 확인합니다.
+        self.log("- 무한의 탑 진행 중 - 일반필드 복귀 대기")
+        while self.state != "IDLE":
+            found = (image_search.locate_smart(ZEUS_TOWER_EXIT_IMG1, ZEUS_TOWER_EXIT_REGION,
+                                                tolerance=tol, transwhite_tolerance=tw_tol)
+                     or image_search.locate_smart(ZEUS_TOWER_EXIT_IMG2, ZEUS_TOWER_EXIT_REGION,
+                                                   tolerance=tol, transwhite_tolerance=tw_tol))
+            if found:
+                break
+            self._sleep_interruptible(ZEUS_TOWER_EXIT_POLL_SEC)
+        if self.state == "IDLE":
+            return
+
+        self.log("- 일반필드 복귀 확인됨 - 마무리 더블클릭 시작")
+        self._double_click_point_jittered(*ZEUS_TOWER_FINISH_CLICK)
+        self._sleep_interruptible(ZEUS_TOWER_FINISH_GAP_SEC)
+        if self.state == "IDLE":
+            return
+        self._double_click_point_jittered(*ZEUS_TOWER_FINISH_CLICK)
+        self.log("- 무한의 탑 로직 종료")
 
     def _handle_fpdlswj_sequence(self, box):
         """fpdlswj.png 발견 시 정해진 순서를 한 번에 수행합니다 (이 전체를 하나의 '행동'으로

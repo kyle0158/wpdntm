@@ -57,7 +57,8 @@ click_at(x, y)가 먼저 win32api.SetCursorPos로 화면 절대좌표로 커서�
 [매크로 로직 개요] (전체 판단 순서는 zeus_macro_logic.py의 _zeus_tick 참고)
   0) 사냥중(anfdir0ro/anfdiron 중 하나라도 있을 때)에만 hp.png 확인, 없으면 귀환로직
   1) SIMPLE_CLICK_IMAGES -> OFFSET_CLICK_IMAGES -> CONDITIONAL_CLICK_IMAGES ->
-     fpdlswj/wkehdrnao(자동구매)/tmzlfqnr(스킬북)/anfdir0ro(물약구매) 순으로 확인,
+     fpdlswj/wkehdrnao(자동구매)/tmzlfqnr(스킬북)/anfdir0ro(물약구매)/
+     angksdmlxkq5cmd(무한의탑) 순으로 확인,
      있으면 즉시 처리
   1.5) 서브퀘스트(tjqmznptmxm/tjqm, fpdlem 여부로 영역만 NORMAL/RAID 전환)
   2) gkdl/dpvlrwlsgod 있으면 대기

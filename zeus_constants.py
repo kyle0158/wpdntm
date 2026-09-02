@@ -189,7 +189,7 @@ ZEUS_SKILLBOOK_CLICKS = [
 # [가정] "2회 빠르게 반복"의 반복 사이 간격은 지정 안 해주셔서 0.2초로 짧게 잡았습니다.
 # ==========================================================
 ZEUS_HP_IMG = 'hp.png'
-ZEUS_HP_REGION = (110, 59, 185, 83)
+ZEUS_HP_REGION = (179, 59, 214, 83)
 ZEUS_RETURN_CLICK1 = (45, 195)
 ZEUS_RETURN_CLICK2 = (682, 515)
 ZEUS_RETURN_REPEAT = 2
@@ -232,6 +232,41 @@ ZEUS_POTION_VERIFY_WAIT_SEC = 3.0
 ZEUS_POTION_VERIFY_IMG = 'anfdiron.png'
 ZEUS_POTION_VERIFY_REGION = ZEUS_POTION_TRIGGER_REGION  # 같은 영역, 다른 이미지(오타 아님)
 
+# ==========================================================
+# [무한의 탑] angksdmlxkq5cmd.png가 보이면 발동합니다:
+#   1) (1225,65) 클릭 -> 2초 대기 -> (885,665) 클릭 -> 2초 대기 (무한의 탑 화면 진입)
+#   2) dusthrwlsgodcpzm.png가 있으면 좌상단 클릭 -> 마우스 치움 -> 재확인, 사라질 때까지 반복
+#   3) dlqwkd.png 클릭 -> 2초 대기 -> (733,500) 클릭 (입장 완료)
+#   4) dpvlrznptmxm.png 또는 tjqmznptmxm.png가 보일 때까지 대기 (=일반필드 복귀 확인.
+#      체류 시간이 정해져 있지 않아 정지 버튼 누르기 전까지 계속 확인합니다)
+#   5) (1000,160) 더블클릭 -> 2초 대기 -> 다시 더블클릭 (종료)
+# [가정] 장애물 재확인 주기(0.5초)와 퇴장 확인 주기(5초)는 지정 안 해주셔서 임의로
+# 잡았습니다. 필요하면 이 두 값만 바꾸면 됩니다.
+# ==========================================================
+ZEUS_TOWER_TRIGGER_IMG = 'angksdmlxkq5cmd.png'
+ZEUS_TOWER_TRIGGER_REGION = (905, 124, 1075, 184)
+
+ZEUS_TOWER_CLICK1 = (1225, 65)
+ZEUS_TOWER_CLICK2 = (885, 665)
+ZEUS_TOWER_CLICK_DELAY_SEC = 2.0
+
+ZEUS_TOWER_SCREEN_IMG = 'dlqwkd.png'  # 무한의 탑 화면 확인 + 입장 클릭용
+ZEUS_TOWER_SCREEN_REGION = (1093, 701, 1224, 782)
+
+ZEUS_TOWER_OBSTACLE_IMG = 'dusthrwlsgodcpzm.png'
+ZEUS_TOWER_OBSTACLE_REGION = (889, 715, 996, 766)
+ZEUS_TOWER_OBSTACLE_POLL_SEC = 0.5  # [가정] 사라졌는지 재확인하는 주기
+
+ZEUS_TOWER_ENTER_CLICK = (733, 500)
+
+ZEUS_TOWER_EXIT_IMG1 = 'dpvlrznptmxm.png'
+ZEUS_TOWER_EXIT_IMG2 = 'tjqmznptmxm.png'
+ZEUS_TOWER_EXIT_REGION = (822, 126, 860, 370)
+ZEUS_TOWER_EXIT_POLL_SEC = 5.0  # [가정] 일반필드 복귀 확인 주기 (탑 체류시간이 길어서 여유있게)
+
+ZEUS_TOWER_FINISH_CLICK = (1000, 160)
+ZEUS_TOWER_FINISH_GAP_SEC = 2.0
+
 # [창끄기] gkdl.png 타임아웃으로 보정 클릭(900,150)을 실행하기 '직전'에 처리하는 정리
 # 동작 모음입니다. 나중에 항목이 더 추가될 수 있어서 별도로 분리해 뒀습니다.
 #   - dlsqpsxhflx.png가 있으면 그 이미지를 클릭
@@ -271,12 +306,44 @@ ZEUS_SUBQUEST_CHECK_IMG = 'tjqm.png'
 ZEUS_SUBQUEST_CHECK_REGION_NORMAL = (1183, 180, 1200, 243)
 ZEUS_SUBQUEST_CHECK_REGION_RAID = (1183, 243, 1201, 301)
 ZEUS_SUBQUEST_CLICK_NORMAL = (945, 215)
-ZEUS_SUBQUEST_CLICK_RAID = (945, 275)
+ZEUS_SUBQUEST_CLICK_RAID = (945, 245)
 
 # fpdlem.png(레이드, transwhite) - 위 [서브퀘스트]에서 어떤 영역(NORMAL/RAID)을 쓸지
 # 결정하는 게이트입니다. 레이드 이미지 자체는 클릭 대상이 아닙니다.
 ZEUS_RAID_GATE_IMG = 'fpdlem.png'
 ZEUS_RAID_GATE_REGION = (914, 187, 1005, 242)
+
+# ==========================================================
+# [무한의 탑] angksdmlxkq5cmd.png가 보이면 발동합니다:
+#   1) (1225,65) 클릭 -> 2초 대기 -> (885,665) 클릭 -> 2초 대기
+#   2) dlqwkd.png(무한의탑 화면) 확인
+#   3) dusthrwlsgodcpzm.png가 있으면 좌상단을 클릭하고(자동으로 마우스 치워짐) 다시
+#      있는지 확인 - 사라질 때까지 반복
+#   4) 사라지면 dlqwkd.png 클릭 -> 2초 대기 -> (733,500) 클릭 (입장 완료)
+#   5) dpvlrznptmxm.png 또는 tjqmznptmxm.png가 보일 때까지 대기 (시간 제한 없음 -
+#      일반필드로 자동 복귀할 때까지 기다립니다)
+#   6) (1000,160) 더블클릭 -> 2초 대기 -> (1000,160) 더블클릭 (종료)
+# [가정] dpvlrznptmxm.png/tjqmznptmxm.png(탈출 확인용)의 검색 영역을 안 주셔서, 기존
+# 서브퀘스트 게이트 영역(ZEUS_SUBQUEST_GATE_REGION_NORMAL)을 임시로 재사용했습니다.
+# 실제 좌표를 알려주시면 바로 고치면 됩니다. 팝업(dusthrwlsgodcpzm) 재확인 전 딜레이(0.5초)
+# 와 탈출 확인 폴링 주기(2초)도 지정 안 해주셔서 임의로 잡았습니다.
+# ==========================================================
+ZEUS_TOWER_TRIGGER_IMG = 'angksdmlxkq5cmd.png'
+ZEUS_TOWER_TRIGGER_REGION = (905, 124, 1075, 184)
+ZEUS_TOWER_STEP1 = (1225, 65)
+ZEUS_TOWER_STEP2 = (885, 665)
+ZEUS_TOWER_SCREEN_IMG = 'dlqwkd.png'
+ZEUS_TOWER_SCREEN_REGION = (1093, 701, 1224, 782)
+ZEUS_TOWER_POPUP_IMG = 'dusthrwlsgodcpzm.png'
+ZEUS_TOWER_POPUP_REGION = (889, 715, 996, 766)
+ZEUS_TOWER_POPUP_RECHECK_DELAY_SEC = 0.5  # [가정]
+ZEUS_TOWER_ENTER_CLICK = (733, 500)
+ZEUS_TOWER_EXIT_CHECK1_IMG = 'dpvlrznptmxm.png'
+ZEUS_TOWER_EXIT_CHECK1_REGION = ZEUS_SUBQUEST_GATE_REGION_NORMAL  # [가정]
+ZEUS_TOWER_EXIT_CHECK2_IMG = 'tjqmznptmxm.png'
+ZEUS_TOWER_EXIT_CHECK2_REGION = ZEUS_SUBQUEST_GATE_REGION_NORMAL  # [가정]
+ZEUS_TOWER_EXIT_POLL_SEC = 2.0  # [가정]
+ZEUS_TOWER_FINISH_CLICK = (1000, 160)
 
 # [미인식 시 드래그] 액션 이미지/서브퀘스트/메인퀘스트 아무것도 못 찾은 상태가 n초
 # 넘으면, (900,150) 보정 클릭에 이어 이 드래그도 1회 실행합니다. (막혔을 때 화면을
