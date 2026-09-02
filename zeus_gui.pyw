@@ -707,6 +707,20 @@ class ZeusController(TelegramNotifierMixin):
                      f"{GAME_WINDOW_W}x{GAME_WINDOW_H}로 크기 변경했습니다")
         except Exception as e:
             self.log(f"- 게임창 이동/크기 변경 실패: {e}")
+            # [자주 나오는 원인] winerror 5 = 액세스 거부. 대상 창(게임)이 이 프로그램보다
+            # 높은 권한(관리자 등)으로 떠 있으면 Windows가 창 조작 자체를 막습니다(UIPI).
+            # 게임을 관리자 권한으로 켜셨다면, 이 매크로도 관리자 권한으로 실행해서 권한을
+            # 맞춰야 합니다 (.pyw 파일 우클릭 -> 관리자 권한으로 실행).
+            winerror = getattr(e, "winerror", None)
+            if winerror is None and getattr(e, "args", None):
+                # pywintypes.error는 args가 (winerror, 함수명, 설명) 형태인 경우가 많습니다.
+                first_arg = e.args[0]
+                if isinstance(first_arg, int):
+                    winerror = first_arg
+            if winerror == 5 or "액세스가 거부" in str(e) or "access is denied" in str(e).lower():
+                self.log("  -> [원인 추정] 권한 차이(winerror 5, 액세스 거부)입니다. 게임이 "
+                         "관리자 권한으로 켜져 있으면 이 매크로도 관리자 권한으로 실행해야 "
+                         "창을 옮길 수 있습니다 (.pyw 파일을 마우스 우클릭 -> 관리자 권한으로 실행)")
 
     # ------------------------------------------------------
     # 아두이노 연결
