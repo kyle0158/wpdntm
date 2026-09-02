@@ -136,6 +136,8 @@ click_at(x, y)가 먼저 win32api.SetCursorPos로 화면 절대좌표로 커서�
 어떤 상황이었는지 확인할 수 있습니다.
 """
 import atexit
+import ctypes
+import sys
 import json
 import os
 import random
@@ -1321,9 +1323,48 @@ class ZeusController(TelegramNotifierMixin):
             pass
 
 
+def is_admin():
+    """지금 관리자 권한으로 돌고 있는지 확인합니다. 확인 자체가 안 되면(윈도우가
+    아니거나 등) False로 봅니다."""
+    try:
+        return bool(ctypes.windll.shell32.IsUserAnAdmin())
+    except Exception:
+        return False
+
+
+def relaunch_as_admin():
+    """관리자 권한이 아니면, 관리자 권한으로 자기 자신을 다시 실행합니다 (UAC 권한
+    요청 창이 뜹니다). 성공적으로 새 프로세스를 띄웠으면 지금 프로세스는 바로
+    종료합니다(True 반환). 이미 관리자 권한이거나, 사용자가 UAC 창에서 취소했거나,
+    관리자 권한 요청 자체에 실패하면 아무것도 안 하고 넘어갑니다(False 반환) -
+    이 경우 게임창 정렬처럼 관리자 권한이 필요한 기능만 못 쓸 수 있고, 나머지
+    (이미지 인식/클릭/텔레그램 등)는 그대로 잘 동작합니다."""
+    if is_admin():
+        return False
+    try:
+        script_path = os.path.abspath(sys.argv[0])
+        params = " ".join(f'"{a}"' for a in sys.argv[1:])
+        work_dir = os.path.dirname(script_path)
+        # ShellExecuteW의 반환값이 32보다 크면 새 프로세스를 성공적으로 띄운 것입니다.
+        ret = ctypes.windll.shell32.ShellExecuteW(
+            None, "runas", sys.executable, f'"{script_path}" {params}'.strip(), work_dir, 1)
+        if ret > 32:
+            return True
+    except Exception:
+        pass
+    return False
+
+
 def main():
+    # [관리자 권한 자동 요청] 게임창 정렬(SetWindowPos)은 게임이 관리자 권한으로 떠
+    # 있으면 이 프로그램도 관리자 권한이어야 동작합니다. .pyw 파일은 우클릭 메뉴에
+    # "관리자 권한으로 실행"이 아예 안 보이는 경우가 있어서, 여기서 직접 요청합니다.
+    if relaunch_as_admin():
+        return  # 관리자 권한으로 새 창이 떴으니, 지금 이 프로세스는 조용히 종료합니다.
+
     root = tk.Tk()
-    ZeusController(root)
+    app = ZeusController(root)
+    app.log(f"- 관리자 권한: {'예' if is_admin() else '아니오 (게임창 정렬이 안 될 수 있습니다)'}")
     root.mainloop()
 
 
