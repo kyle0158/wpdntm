@@ -10,6 +10,7 @@ __pycache__/
 _update_temp/
 _tester_temp_capture.png
 zeus_config.json
+git rm --cached -r logs/
 git add .gitignore
 git commit -m "zeus_config.json을 git 추적에서 제외"
 git push
