@@ -31,6 +31,9 @@
     따로 만들면 됩니다. (fpdlswj, wkehdrnao(자동구매), tmzlfqnr(스킬북)가 이 경우)
 
 [이미지 종류 / 영역]
+  최우선 안전 체크 (매 턴 제일 먼저 확인, 아래 [HP 확인 / 귀환로직] 참고):
+    - hp.png - (179,59,214,83) - 없으면 귀환로직(귀환로직/재확인/최대30초/텔레그램+정지)
+
   단순 클릭 (SIMPLE_CLICK_IMAGES, 리스트 순서 = 확인 우선순위):
     - apdlscpzm.png (transwhite) - (1144,124,1183,381)
     - dhksfy.png                 - (561,266,735,355)
@@ -50,6 +53,7 @@
     - fpdlswj.png     - (35,229,294,310)   - 더블클릭 3번 + 10초 대기 (아래 참고)
     - wkehdrnao.png   - (287,701,412,771)  - 고정좌표 6클릭 + 반복클릭 (자동구매)
     - tmzlfqnr.png    - (28,117,108,203)   - 고정좌표 3클릭 + 창끄기 (스킬북)
+    - anfdir0ro.png   - (298,692,347,755)  - 물약구매 로직 (아래 [물약구매 로직] 참고)
 
   서브퀘스트 (메인퀘스트(gkdl.png)보다 먼저 확인, 아래 [서브퀘스트] 참고):
     - tjqmznptmxm.png (게이트) - (821,185,860,221)   - 클릭 안 함, 서브퀘스트 존재 여부만 확인
@@ -86,6 +90,26 @@
 [레이드 게이트] fpdlem.png(transwhite)가 보이면 - 서브퀘스트(위 [서브퀘스트]) 로직
 전체를 이번 턴에 건너뛰고 바로 메인퀘스트(gkdl.png 등) 쪽으로 넘어갑니다. 레이드 중엔
 서브퀘스트 판단 자체가 의미가 없어서입니다. fpdlem.png 자체는 클릭 대상이 아닙니다.
+
+[HP 확인 / 귀환로직] (_handle_hp_missing_sequence, _perform_return_logic)
+매 턴 제일 먼저 hp.png를 확인합니다. 보이면(정상) 아무것도 안 하고 그냥 통과합니다.
+안 보이면:
+  1) 귀환로직: (45,195) -> (682,515) 클릭 쌍을 2회 빠르게 반복
+  2) 10초 대기 -> hp.png 재확인. 있으면 정상 흐름으로 복귀.
+  3) 없으면 다시 10초 대기 후 재확인 - 최대 30초까지 반복
+  4) 30초 안에 hp.png가 안 보이면 텔레그램 알림 후 정지
+귀환로직(_perform_return_logic)은 아래 물약구매 로직 시작할 때도 그대로 재사용합니다.
+
+[물약구매 로직] (_handle_potion_purchase_sequence)
+anfdir0ro.png가 보이면 발동합니다:
+  1) 귀환로직 수행
+  2) 10초 대기
+  3) 잡화버튼(wkqghkqjxms.png)을 찾아서 클릭
+  4) 잡화상점이 열렸는지(wkehdrnao.png - 자동구매 게이트와 같은 이미지/영역) 최대 30초까지
+     확인. 안 열리면 텔레그램 알림 후 정지.
+  5) 열렸으면 (70,155) -> (680,625) 클릭, (825,475) 더블클릭, (725,575) 클릭
+  6) 3초 대기 후 anfdiron.png로 구매 성공 여부 확인 (실패해도 경고 로그만 남기고 정상
+     흐름으로 계속 진행 - 정지하지 않음)
 
 [보정 클릭 전 rhkfgh 확인] gkdl.png/dpvlrwlsgod.png 타임아웃으로 (900,150)을 보정
 클릭하기 '직전'에 rhkfgh.png를 한 번 더 확인합니다. rhkfgh.png가 떠 있는 상태에서
@@ -324,6 +348,55 @@ ZEUS_SKILLBOOK_CLICKS = [
     (725, 575),
 ]
 
+# ==========================================================
+# [HP 확인 / 귀환로직] hp.png가 안 보이면(최우선으로, 매 턴 제일 먼저 확인) 귀환로직을
+# 수행합니다. 귀환로직은 물약구매 로직 시작할 때도 재사용합니다.
+#   1) (45,195) -> (682,515) 클릭 쌍을 2회 빠르게 반복
+#   2) 10초 대기 후 hp.png 재확인. 있으면 정상 흐름으로 복귀.
+#   3) 없으면 다시 10초 대기 후 재확인 - 최대 30초까지 반복
+#   4) 30초 안에 hp.png가 안 보이면 텔레그램 알림 후 정지
+# [가정] "2회 빠르게 반복"의 반복 사이 간격은 지정 안 해주셔서 0.2초로 짧게 잡았습니다.
+# ==========================================================
+ZEUS_HP_IMG = 'hp.png'
+ZEUS_HP_REGION = (179, 59, 214, 83)
+ZEUS_RETURN_CLICK1 = (45, 195)
+ZEUS_RETURN_CLICK2 = (682, 515)
+ZEUS_RETURN_REPEAT = 2
+ZEUS_RETURN_REPEAT_GAP_SEC = 0.2  # [가정] 반복 사이 간격
+ZEUS_HP_RECHECK_INTERVAL_SEC = 10.0
+ZEUS_HP_RECHECK_MAX_SEC = 30.0
+
+# ==========================================================
+# [물약구매 로직] anfdir0ro.png가 보이면 발동합니다:
+#   1) 귀환로직 수행 (위 [HP 확인 / 귀환로직]과 동일한 동작 재사용)
+#   2) 10초 대기
+#   3) 잡화버튼(wkqghkqjxms.png)을 찾아서 클릭
+#   4) 잡화상점이 열렸는지(wkehdrnao.png - 자동구매 게이트와 같은 이미지/영역을 재사용)
+#      최대 30초까지 확인. 안 열리면 텔레그램 알림 후 정지.
+#   5) 열렸으면 고정좌표 클릭(70,155)->(680,625)->(825,475)더블클릭->(725,575) 수행
+#   6) 3초 대기 후 anfdiron.png로 구매가 실제로 됐는지 확인 (로그만 남기고 정상 흐름 복귀)
+# [가정] 잡화상점 열림 확인 주기는 1초로 잡았습니다. 잡화버튼을 못 찾거나 anfdiron
+# 확인에 실패해도 명시적으로 정지하라고 하시지 않아서, 경고 로그만 남기고 계속
+# 진행하도록 했습니다 (정지가 필요한 두 곳: hp 30초 초과 / 상점 30초 미오픈만 정지).
+# ==========================================================
+ZEUS_POTION_TRIGGER_IMG = 'anfdir0ro.png'
+ZEUS_POTION_TRIGGER_REGION = (298, 692, 347, 755)
+ZEUS_GROCERY_BUTTON_IMG = 'wkqghkqjxms.png'
+ZEUS_GROCERY_BUTTON_REGION = (1002, 595, 1236, 764)
+ZEUS_SHOP_OPEN_CHECK_IMG = ZEUS_AUTOBUY_IMG        # wkehdrnao.png (자동구매 게이트와 동일)
+ZEUS_SHOP_OPEN_CHECK_REGION = ZEUS_AUTOBUY_REGION
+ZEUS_SHOP_OPEN_MAX_WAIT_SEC = 30.0
+ZEUS_SHOP_OPEN_POLL_SEC = 1.0  # [가정] 상점 열림 확인 주기
+ZEUS_POTION_CLICKS = [
+    (70, 155),
+    (680, 625),
+]
+ZEUS_POTION_DOUBLE_CLICK = (825, 475)
+ZEUS_POTION_LAST_CLICK = (725, 575)
+ZEUS_POTION_VERIFY_WAIT_SEC = 3.0
+ZEUS_POTION_VERIFY_IMG = 'anfdiron.png'
+ZEUS_POTION_VERIFY_REGION = ZEUS_POTION_TRIGGER_REGION  # 같은 영역, 다른 이미지(오타 아님)
+
 # [창끄기] gkdl.png 타임아웃으로 보정 클릭(900,150)을 실행하기 '직전'에 처리하는 정리
 # 동작 모음입니다. 나중에 항목이 더 추가될 수 있어서 별도로 분리해 뒀습니다.
 #   - dlsqpsxhflx.png가 있으면 그 이미지를 클릭
@@ -334,8 +407,11 @@ ZEUS_CHANGKKEUGI2_IMG = 'skrkrl.png'
 ZEUS_CHANGKKEUGI2_REGION = (1130, 712, 1198, 789)
 ZEUS_CHANGKKEUGI2_CLICK = (1222, 70)
 
-# [정체 감지] 보정 클릭(900,150)이 연속 이 횟수 이상 발생하면(=중간에 아무 진전도 없었으면)
-# 텔레그램으로 알리고 매크로를 정지합니다. GUI에서 값을 바꿀 수 있습니다.
+# [정체 감지] 보정 클릭(900,150)+드래그, HP 미확인, 잡화상점 미오픈 등 "자동 정지가
+# 필요한 상황"이 연속 이 횟수 이상 발생하면 텔레그램으로 알리고 매크로를 정지합니다.
+# (지금은 보정 클릭+드래그 쪽만 이 카운트를 실제로 세고, HP/상점 미오픈은 각자 자체
+# 타임아웃 즉시 정지합니다 - 전부 같은 텔레그램 이벤트('stuck')를 씁니다) GUI에서 값을
+# 바꿀 수 있습니다.
 DEFAULT_STUCK_REPEAT_THRESHOLD = 3
 
 # ==========================================================
@@ -662,11 +738,11 @@ class ZeusController(TelegramNotifierMixin):
         tk.Button(frm_conn, text="테스트 전송", command=self.notify_test,
                   bg="#eaf2f8").pack(fill="x", padx=5, pady=(0, 6))
 
-        frm_event = tk.LabelFrame(parent, text="정체 감지 알림")
+        frm_event = tk.LabelFrame(parent, text="자동 정지 알림")
         frm_event.pack(fill="x", padx=6, pady=3)
         row5 = tk.Frame(frm_event)
         row5.pack(fill="x", padx=5, pady=5)
-        tk.Checkbutton(row5, text="정체 감지 시 알림 보내기", font=("", 8),
+        tk.Checkbutton(row5, text="자동 정지 시 알림 보내기", font=("", 8),
                        variable=self.tg_event_enabled_vars["stuck"]).pack(side="left")
         row6 = tk.Frame(frm_event)
         row6.pack(fill="x", padx=5, pady=(0, 5))
@@ -676,7 +752,8 @@ class ZeusController(TelegramNotifierMixin):
         tk.Label(row6, text="회 (같은 알림을 몇 번 보낼지)", font=("", 7),
                  fg="#666").pack(side="left")
         tk.Label(frm_event,
-                 text="'정체판정' 회수(매크로 탭)만큼 보정클릭+드래그가 연속되면 여기서 보낸 뒤 정지합니다.",
+                 text="정체(보정클릭+드래그 연속), HP 30초 미확인, 잡화상점 30초 미오픈 - "
+                      "이 셋 중 하나라도 발생하면 여기서 보낸 뒤 정지합니다.",
                  font=("", 7), fg="#666", wraplength=WINDOW_WIDTH - 20,
                  justify="left").pack(fill="x", padx=5, pady=(0, 6))
 
@@ -1099,9 +1176,11 @@ class ZeusController(TelegramNotifierMixin):
         """한 바퀴치 판단 + 클릭.
 
         순서:
+          0) hp.png가 안 보이면 다른 판단 없이 귀환로직부터 처리 (최우선 안전 체크)
           1) SIMPLE_CLICK_IMAGES / OFFSET_CLICK_IMAGES / CONDITIONAL_CLICK_IMAGES
-             (각 리스트 순서대로) / fpdlswj.png / wkehdrnao.png / tmzlfqnr.png - 있으면
-             즉시 클릭(연속 동작 이미지는 시퀀스 수행) (gkdl.png/dpvlrwlsgod.png 여부와 무관)
+             (각 리스트 순서대로) / fpdlswj.png / wkehdrnao.png / tmzlfqnr.png /
+             anfdir0ro.png(물약구매) - 있으면 즉시 클릭(연속 동작 이미지는 시퀀스 수행)
+             (gkdl.png/dpvlrwlsgod.png 여부와 무관)
           1.5) 위가 다 없으면 fpdlem.png(레이드) 확인 - 있으면 서브퀘스트 생략. 없으면
                서브퀘스트(tjqmznptmxm.png) 확인. 있으면 이번 턴은 서브퀘스트만 처리하고
                메인퀘스트(2, 3)는 아예 안 봅니다.
@@ -1114,6 +1193,15 @@ class ZeusController(TelegramNotifierMixin):
         now = time.time()
         tol = self.get_tolerance()
         tw_tol = self.get_transwhite_tolerance()
+
+        # 0) [최우선 안전 체크] hp.png가 안 보이면 다른 판단 없이 귀환로직부터 처리합니다.
+        # hp.png가 정상적으로 보일 때는(대부분의 경우) 아무것도 안 하고 그냥 통과합니다 -
+        # 여기서 활동 타이머를 건드리지 않아야 미인식 타임아웃 로직이 정상 작동합니다.
+        hp_found = image_search.locate_smart(ZEUS_HP_IMG, ZEUS_HP_REGION,
+                                              tolerance=tol, transwhite_tolerance=tw_tol)
+        if not hp_found:
+            self._handle_hp_missing_sequence()
+            return
 
         # 1) 단순 클릭 이미지들 - 새 이미지 추가는 SIMPLE_CLICK_IMAGES에 한 줄만 넣으면 됩니다.
         for img_name, region, transwhite in SIMPLE_CLICK_IMAGES:
@@ -1185,6 +1273,14 @@ class ZeusController(TelegramNotifierMixin):
                                          tolerance=tol, transwhite_tolerance=tw_tol)
         if box:
             self._handle_skillbook_sequence(box, tol, tw_tol)
+            self._mark_activity()
+            return
+
+        # anfdir0ro.png(물약구매 트리거) - 발견되면 물약구매 로직 전체를 수행합니다.
+        box = image_search.locate_smart(ZEUS_POTION_TRIGGER_IMG, ZEUS_POTION_TRIGGER_REGION,
+                                         tolerance=tol, transwhite_tolerance=tw_tol)
+        if box:
+            self._handle_potion_purchase_sequence()
             self._mark_activity()
             return
 
@@ -1334,6 +1430,119 @@ class ZeusController(TelegramNotifierMixin):
 
         self._perform_chang_kkeugi(tol, tw_tol)
         self.log("- tmzlfqnr(스킬북) 연속 동작 종료")
+
+    def _perform_return_logic(self):
+        """귀환로직: (45,195) -> (682,515) 클릭 쌍을 ZEUS_RETURN_REPEAT회 빠르게
+        반복합니다. hp.png 미확인 시, 그리고 물약구매 로직 시작할 때 재사용합니다."""
+        self.log("- 귀환로직 수행")
+        for i in range(ZEUS_RETURN_REPEAT):
+            self._click_point_jittered(*ZEUS_RETURN_CLICK1)
+            self._click_point_jittered(*ZEUS_RETURN_CLICK2)
+            if i < ZEUS_RETURN_REPEAT - 1:
+                time.sleep(ZEUS_RETURN_REPEAT_GAP_SEC)
+
+    def _handle_hp_missing_sequence(self):
+        """hp.png가 안 보일 때: 귀환로직 -> 10초 대기 -> hp.png 재확인을 최대 30초까지
+        반복합니다. 그래도 안 보이면 텔레그램 알림 후 정지합니다."""
+        self.log("- hp 미확인 -> 귀환로직 시작")
+        self._perform_return_logic()
+
+        tol = self.get_tolerance()
+        tw_tol = self.get_transwhite_tolerance()
+        elapsed = 0.0
+        while elapsed < ZEUS_HP_RECHECK_MAX_SEC and self.state != "IDLE":
+            self._sleep_interruptible(ZEUS_HP_RECHECK_INTERVAL_SEC)
+            elapsed += ZEUS_HP_RECHECK_INTERVAL_SEC
+            if self.state == "IDLE":
+                return
+            found = image_search.locate_smart(ZEUS_HP_IMG, ZEUS_HP_REGION,
+                                               tolerance=tol, transwhite_tolerance=tw_tol)
+            if found:
+                self.log(f"- hp 재확인됨 ({elapsed:.0f}초 경과) - 정상 흐름으로 복귀")
+                self._mark_activity()
+                return
+            self.log(f"- hp 여전히 안 보임 ({elapsed:.0f}초 경과)")
+
+        if self.state == "IDLE":
+            return
+        msg = f"hp.png가 {ZEUS_HP_RECHECK_MAX_SEC:.0f}초 동안 확인되지 않았습니다. 매크로를 정지합니다."
+        self.log(f"- [경고] {msg}")
+        self.notify_event("stuck", msg, once=False)
+        self.root.after(0, self.on_stop)
+
+    def _handle_potion_purchase_sequence(self):
+        """anfdir0ro.png 발견 시 물약구매 전체 흐름을 수행합니다:
+          1) 귀환로직 수행 (_perform_return_logic 재사용)
+          2) 10초 대기
+          3) 잡화버튼(wkqghkqjxms.png) 클릭
+          4) 잡화상점 열림(wkehdrnao.png) 확인 - 최대 30초, 안 열리면 텔레그램+정지
+          5) 열렸으면 고정좌표 클릭 4단계(마지막 직전은 더블클릭)
+          6) 3초 대기 후 anfdiron.png로 구매 성공 여부 확인 (실패해도 경고 로그만, 정지 안 함)
+        """
+        self.log("- anfdir0ro 발견 -> 물약구매 로직 시작")
+        self._perform_return_logic()
+
+        self.log("- 10초 대기")
+        self._sleep_interruptible(10.0)
+        if self.state == "IDLE":
+            return
+
+        tol = self.get_tolerance()
+        tw_tol = self.get_transwhite_tolerance()
+
+        box = image_search.locate_smart(ZEUS_GROCERY_BUTTON_IMG, ZEUS_GROCERY_BUTTON_REGION,
+                                         tolerance=tol, transwhite_tolerance=tw_tol)
+        if box:
+            self._click_box_jittered(box)
+            self.log("- 잡화버튼(wkqghkqjxms) 클릭")
+        else:
+            self.log("- ⚠ 잡화버튼(wkqghkqjxms)을 못 찾았습니다 - 그래도 상점이 열리는지는 계속 확인합니다")
+
+        # [잡화상점 열림 확인] wkehdrnao.png가 보일 때까지 최대 30초 대기.
+        elapsed = 0.0
+        shop_open = False
+        while elapsed < ZEUS_SHOP_OPEN_MAX_WAIT_SEC and self.state != "IDLE":
+            found = image_search.locate_smart(ZEUS_SHOP_OPEN_CHECK_IMG, ZEUS_SHOP_OPEN_CHECK_REGION,
+                                               tolerance=tol, transwhite_tolerance=tw_tol)
+            if found:
+                shop_open = True
+                break
+            self._sleep_interruptible(ZEUS_SHOP_OPEN_POLL_SEC)
+            elapsed += ZEUS_SHOP_OPEN_POLL_SEC
+
+        if self.state == "IDLE":
+            return
+
+        if not shop_open:
+            msg = (f"잡화상점이 {ZEUS_SHOP_OPEN_MAX_WAIT_SEC:.0f}초 동안 열리지 않았습니다. "
+                   f"매크로를 정지합니다.")
+            self.log(f"- [경고] {msg}")
+            self.notify_event("stuck", msg, once=False)
+            self.root.after(0, self.on_stop)
+            return
+
+        self.log("- 잡화상점 열림 확인됨 - 물약구매 클릭 시작")
+        for x, y in ZEUS_POTION_CLICKS:
+            self._click_point_jittered(x, y)
+            self.log(f"  ({x},{y}) 클릭 완료")
+        self._double_click_point_jittered(*ZEUS_POTION_DOUBLE_CLICK)
+        self.log(f"  {ZEUS_POTION_DOUBLE_CLICK} 더블클릭 완료")
+        self._click_point_jittered(*ZEUS_POTION_LAST_CLICK)
+        self.log(f"  {ZEUS_POTION_LAST_CLICK} 클릭 완료")
+
+        self.log(f"- {ZEUS_POTION_VERIFY_WAIT_SEC:.0f}초 대기 후 구매 확인")
+        self._sleep_interruptible(ZEUS_POTION_VERIFY_WAIT_SEC)
+        if self.state == "IDLE":
+            return
+
+        verified = image_search.locate_smart(ZEUS_POTION_VERIFY_IMG, ZEUS_POTION_VERIFY_REGION,
+                                              tolerance=tol, transwhite_tolerance=tw_tol)
+        if verified:
+            self.log("- anfdiron 확인됨 - 물약구매 정상 완료")
+        else:
+            self.log("- ⚠ anfdiron을 못 찾았습니다 - 물약구매가 제대로 안 됐을 수 있습니다 "
+                     "(일단 정상 흐름으로 계속 진행합니다)")
+        self.log("- 물약구매 로직 종료")
 
     def _click_point_jittered(self, x, y, jitter_min=CLICK_JITTER_MIN, jitter_max=CLICK_JITTER_MAX):
         """지정한 좌표에서 x, y를 각각 무작위로 살짝 흔들어서 클릭합니다."""
