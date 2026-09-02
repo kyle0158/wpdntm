@@ -144,6 +144,10 @@ import time
 
 import pyautogui
 import serial
+try:
+    from serial.tools import list_ports
+except Exception:
+    list_ports = None
 import tkinter as tk
 from tkinter import scrolledtext, ttk
 import win32api
@@ -154,13 +158,47 @@ import image_search  # noqa: F401  (다음 단계: run_loop 안에서 image_sear
 from telegram_notifier import TelegramNotifierMixin, DEFAULT_SEND_INTERVAL
 
 # ==========================================================
-# [연결 설정] main.py와 같은 값을 씁니다. 포트가 다르면 여기만 바꾸면 됩니다.
+# [연결 설정] main.py와 같은 값을 씁니다. PC마다 포트 번호(COM3, COM4 등)가 다를 수
+# 있는데, 아래 PORT는 '아무 설정도 없을 때 맨 처음 시도해볼 기본값'일 뿐입니다.
+# 실제로는 1) GUI에 저장된 포트(zeus_config.json) -> 2) 그게 실패하면 자동 인식 순서로
+# 접속을 시도합니다 (connect_serial 참고).
 # ==========================================================
 PORT = 'COM3'
 BAUD_RATE = 115200
 
+# [아두이노 자동 인식] 지정한 포트로 연결이 실패하면, 연결된 장치 중 설명(description)에
+# 'Arduino'가 들어있거나 아래 VID:PID 조합과 일치하는 포트를 찾아 자동으로 재시도합니다.
+# CH340 등을 쓰는 클론 보드도 웬만하면 잡힙니다. 다른 보드/칩을 쓰신다면 여기에 값만
+# 추가하면 됩니다.
+KNOWN_ARDUINO_VID_PID = {
+    (0x2341, 0x8036),  # Arduino Leonardo
+    (0x2341, 0x8037),  # Arduino Micro
+    (0x2A03, 0x8036),  # Arduino Leonardo (구 VID)
+    (0x2A03, 0x8037),  # Arduino Micro (구 VID)
+    (0x1A86, 0x7523),  # CH340 계열 클론 보드
+}
+
+
+def find_arduino_port():
+    """연결된 시리얼 포트 중 아두이노로 보이는 것을 찾아 포트 이름을 돌려줍니다.
+    pyserial의 list_ports를 못 쓰거나 못 찾으면 None."""
+    if list_ports is None:
+        return None
+    try:
+        ports = list(list_ports.comports())
+    except Exception:
+        return None
+    for p in ports:
+        if "arduino" in (p.description or "").lower():
+            return p.device
+    for p in ports:
+        if (p.vid, p.pid) in KNOWN_ARDUINO_VID_PID:
+            return p.device
+    return None
+
+
 WINDOW_WIDTH = 300
-WINDOW_HEIGHT = 520
+WINDOW_HEIGHT = 545
 WINDOW_X = 1620   # GUI 창이 켜질 때 위치할 화면 좌표 (좌상단 X)
 WINDOW_Y = 0       # GUI 창이 켜질 때 위치할 화면 좌표 (좌상단 Y)
 
@@ -347,6 +385,7 @@ LOG_DIR = os.path.join(BASE_DIR, "logs")
 SCREENSHOT_DIR = os.path.join(BASE_DIR, "screenshots")
 
 DEFAULT_CONFIG = {
+    "serial_port": PORT,
     "timeout_sec": DEFAULT_NO_IMAGE_TIMEOUT_SEC,
     "tolerance": ZEUS_TOLERANCE,
     "transwhite_tolerance": ZEUS_TRANSWHITE_TOLERANCE,
@@ -410,6 +449,7 @@ class ZeusController(TelegramNotifierMixin):
         self.cfg = load_config()
 
         self.ser = None
+        self.port_var = tk.StringVar(value=self.cfg.get("serial_port", PORT))
         self.mouse_pos_var = tk.StringVar(value="X: 0, Y: 0")
         self.timeout_sec_var = tk.StringVar(value=str(self.cfg.get("timeout_sec", DEFAULT_NO_IMAGE_TIMEOUT_SEC)))
         self.tolerance_var = tk.StringVar(value=str(self.cfg.get("tolerance", ZEUS_TOLERANCE)))
@@ -477,6 +517,14 @@ class ZeusController(TelegramNotifierMixin):
         self.lbl_serial.bind("<Button-1>", self.retry_serial)
         tk.Label(frm_top, textvariable=self.mouse_pos_var, font=("Consolas", 8),
                  fg="#555555", width=16, anchor="e").pack(side="right")
+
+        # 포트 직접 지정 (자동 인식이 실패했을 때 여기 입력하고 상태 표시줄을 클릭하면 재연결)
+        frm_port = tk.Frame(parent)
+        frm_port.pack(fill="x", padx=5, pady=(0, 3))
+        tk.Label(frm_port, text="포트", font=("", 8)).pack(side="left")
+        tk.Entry(frm_port, textvariable=self.port_var, width=8).pack(side="left", padx=4)
+        tk.Label(frm_port, text="(자동인식 실패시 직접 입력 후 위 상태줄 클릭)",
+                 font=("", 7), fg="#666").pack(side="left")
 
         # 상태 표시
         self.lbl_state = tk.Label(parent, text="정지됨", font=("", 12, "bold"),
@@ -678,14 +726,50 @@ class ZeusController(TelegramNotifierMixin):
                 self.log(f"- [진단] 시리얼 전송 실패 ({data}): {e}")
 
     def connect_serial(self):
+        target_port = (self.port_var.get() or "").strip() or PORT
         try:
-            self.ser = serial.Serial(PORT, BAUD_RATE, timeout=0.1)
-            self.log(f"- 아두이노 연결됨 ({PORT})")
+            self.ser = serial.Serial(target_port, BAUD_RATE, timeout=0.1)
+            self.log(f"- 아두이노 연결됨 ({target_port})")
         except Exception as e:
             self.ser = None
-            self.log(f"- 아두이노 연결 실패 ({PORT}): {e}")
-            self.log("  -> 포트를 다른 프로그램이 쓰고 있을 수 있습니다 (예전에 켜둔 창 등)")
+            self.log(f"- 아두이노 연결 실패 ({target_port}): {e}")
+
+            # [자동 인식] 지정한 포트로 실패하면, 연결된 장치 중 아두이노로 보이는
+            # 포트를 자동으로 찾아 한 번 더 시도합니다. PC마다 포트 번호(COM3, COM4
+            # 등)가 다른 문제를 여기서 해결합니다.
+            auto_port = find_arduino_port()
+            if auto_port and auto_port != target_port:
+                self.log(f"- 자동 인식 시도: {auto_port}")
+                try:
+                    self.ser = serial.Serial(auto_port, BAUD_RATE, timeout=0.1)
+                    self.log(f"- 아두이노 연결됨 ({auto_port}) - 자동으로 찾았습니다. "
+                             f"'저장' 버튼을 누르면 다음에도 이 포트로 바로 붙습니다")
+                    self.port_var.set(auto_port)
+                except Exception as e2:
+                    self.ser = None
+                    self.log(f"- 자동 인식으로도 연결 실패 ({auto_port}): {e2}")
+
+            if not self.is_serial_ready():
+                self.log("  -> 포트를 다른 프로그램이 쓰고 있거나, 케이블/드라이버 문제일 수 있습니다")
+                self._log_available_ports()
         self.refresh_serial_status()
+
+    def _log_available_ports(self):
+        """진단용: 지금 이 컴퓨터에 연결된 시리얼 포트 목록을 로그로 남깁니다.
+        여기 나온 포트 이름을 매크로 탭의 '포트' 입력칸에 직접 넣고 재연결하면 됩니다."""
+        if list_ports is None:
+            self.log("  -> (포트 목록을 확인하려면 pyserial의 list_ports가 필요합니다)")
+            return
+        try:
+            ports = list(list_ports.comports())
+        except Exception:
+            return
+        if not ports:
+            self.log("  -> 이 컴퓨터에 연결된 시리얼 포트가 하나도 없습니다")
+            return
+        self.log("  -> 연결된 포트 목록:")
+        for p in ports:
+            self.log(f"     {p.device} - {p.description}")
 
     def is_serial_ready(self):
         return bool(self.ser and self.ser.is_open)
@@ -693,16 +777,19 @@ class ZeusController(TelegramNotifierMixin):
     def refresh_serial_status(self):
         try:
             if self.is_serial_ready():
-                self.lbl_serial.config(text=f"● 아두이노 연결됨 ({PORT})", fg="#145a32", bg="#d5f5e3")
+                actual_port = self.ser.port
+                self.lbl_serial.config(text=f"● 아두이노 연결됨 ({actual_port})",
+                                        fg="#145a32", bg="#d5f5e3")
             else:
-                self.lbl_serial.config(text=f"⚠ 아두이노 미연결 ({PORT}) — 클릭해서 재연결",
+                shown_port = (self.port_var.get() or "").strip() or PORT
+                self.lbl_serial.config(text=f"⚠ 아두이노 미연결 ({shown_port}) — 클릭해서 재연결",
                                         fg="#ffffff", bg="#c0392b")
         except Exception:
             pass
 
     def retry_serial(self, event=None):
         if self.is_serial_ready():
-            self.log(f"- 아두이노는 이미 연결되어 있습니다 ({PORT})")
+            self.log(f"- 아두이노는 이미 연결되어 있습니다 ({self.ser.port})")
             return
         try:
             if self.ser:
@@ -893,6 +980,7 @@ class ZeusController(TelegramNotifierMixin):
     # ------------------------------------------------------
     def save_settings(self):
         cfg = {
+            "serial_port": (self.port_var.get() or "").strip() or PORT,
             "timeout_sec": self.get_no_image_timeout_sec(),
             "tolerance": self.get_tolerance(),
             "transwhite_tolerance": self.get_transwhite_tolerance(),
