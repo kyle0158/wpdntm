@@ -1,10 +1,17 @@
 """
-[제우스 매크로]
+[제우스 매크로 - GUI / 연결 / 클릭 실행부]
+tkinter GUI, 아두이노 시리얼 연결, 실제 클릭/드래그를 물리적으로 실행하는 부분,
+그리고 시작/일시정지/정지 같은 생명주기를 담당합니다.
+
+"무엇을 언제 클릭할지" 판단하는 로직은 zeus_macro_logic.py의 MacroLogicMixin에 있고,
+이미지/좌표 등 설정값은 zeus_constants.py에 있습니다. 이 세 파일 + telegram_notifier.py
++ image_search.py + region_image_tester.py가 세트로 같은 폴더에 있어야 합니다.
+
 화면 구성:
   [상단]  아두이노 연결 상태(좌, 클릭하면 재연결) + 마우스 좌표(우, 화면 절대좌표, 100ms 갱신)
   [포트]  아두이노 포트 직접 입력 (자동인식 실패 시)
   [상태]  정지됨 / 동작 중 / 일시정지됨
-  [설정]  미인식 대기 n초 / 오차범위(일반, transwhite) / 정체판정 반복횟수 - 아래 설명 참고
+  [설정]  미인식 대기 n초 / 오차범위(일반, transwhite) / 정체판정 반복횟수
   [버튼]  시작 / 일시정지 / 정지
   [도구]  이미지 테스터 열기 / 게임창 정렬 / 설정 저장 / 드래그 테스트
   [로그]  진행 상황
@@ -13,141 +20,11 @@
 위치합니다. 게임창을 (0,0)에 1280x800으로 맞춰두면 딱 옆에 붙습니다.
 
 [게임창 정렬] 제목에 "제우스: 오만의 신"이 포함된 창을 찾아서 (0,0)으로 옮기고
-1280x800 크기로 바꿉니다. 창을 못 찾으면(게임이 안 켜져 있거나 제목이 다르면) 로그에
-이유가 남습니다. 프로그램을 켜면 이 정렬을 1회 자동으로(필수로) 실행합니다 - 게임을
-먼저 켜둔 상태에서 이 매크로를 실행해야 정상적으로 맞춰집니다.
+1280x800 크기로 바꿉니다. 프로그램을 켜면 이 정렬을 1회 자동으로(필수로) 실행합니다 -
+게임을 먼저 켜둔 상태에서 이 매크로를 실행해야 정상적으로 맞춰집니다.
 
 [드래그 테스트 버튼] 게임창 정렬을 1회 실행한 뒤, 미인식 시 쓰는 드래그
 ((453,346) -> (530,466))를 1회 실행해봅니다. 좌표/속도가 맞는지 확인하는 용도입니다.
-
-[새 이미지 추가하는 방법 - 여기가 핵심입니다]
-  - "찾으면 그냥 클릭"만 하면 되는 이미지 -> SIMPLE_CLICK_IMAGES 리스트에 한 줄만 추가
-    (파일명, 검색영역, transwhite여부)
-  - "왼쪽위 기준으로 x/y를 특정 범위만큼 밀어서" 클릭해야 하는 이미지 -> OFFSET_CLICK_IMAGES에
-    한 줄만 추가 (파일명, 검색영역, transwhite여부, x오프셋범위, y오프셋범위)
-  - "다른 이미지가 없을 때만" 클릭해야 하는 이미지 -> CONDITIONAL_CLICK_IMAGES에 한 줄만
-    추가 (파일명, 검색영역, transwhite여부, 없어야하는이미지, 그영역, 그transwhite여부)
-  - 더블클릭/여러 단계/대기처럼 특수한 동작이 필요한 이미지만 개별 핸들러(_handle_* 함수)로
-    따로 만들면 됩니다. (fpdlswj, wkehdrnao(자동구매), tmzlfqnr(스킬북)가 이 경우)
-
-[이미지 종류 / 영역]
-  최우선 안전 체크 (매 턴 제일 먼저 확인, 아래 [HP 확인 / 귀환로직] 참고):
-    - hp.png - (179,59,214,83) - 없으면 귀환로직(귀환로직/재확인/최대30초/텔레그램+정지)
-
-  단순 클릭 (SIMPLE_CLICK_IMAGES, 리스트 순서 = 확인 우선순위):
-    - apdlscpzm.png (transwhite) - (1144,124,1183,381)
-    - dhksfy.png                 - (561,266,735,355)
-    - skip.png                   - (1141,44,1256,97)
-    - tnfkr.png                  - (508,42,835,153)
-    - wkdckr.png (transwhite)    - (749,362,982,487)
-    - ghkrdls.png                - (694,471,778,530)
-    - tnfkr1.png                 - (1102,715,1183,759)
-
-  오프셋 클릭 (OFFSET_CLICK_IMAGES, 단순 클릭 다음 순서):
-    - xbxhfldjf.png (transwhite)  - (824,181,857,400)   - 왼쪽위 기준 x+30~40, y+5~10
-
-  조건부 클릭 (CONDITIONAL_CLICK_IMAGES, 오프셋 클릭 다음 순서):
-    - skrkrl2.png - (17,44,82,99) - tnfkr.png가 없을 때만 클릭
-
-  연속 동작(시퀀스, 개별 핸들러):
-    - fpdlswj.png     - (35,229,294,310)   - 더블클릭 3번 + 10초 대기 (아래 참고)
-    - wkehdrnao.png   - (287,701,412,771)  - 고정좌표 6클릭 + 반복클릭 (자동구매)
-    - tmzlfqnr.png    - (28,117,108,203)   - 고정좌표 3클릭 + 창끄기 (스킬북)
-    - anfdir0ro.png   - (298,692,347,755)  - 물약구매 로직 (아래 [물약구매 로직] 참고)
-
-  서브퀘스트 (메인퀘스트(gkdl.png)보다 먼저 확인, 아래 [서브퀘스트] 참고):
-    - tjqmznptmxm.png (게이트) - (821,185,860,221)   - 클릭 안 함, 서브퀘스트 존재 여부만 확인
-    - tjqm.png (체크)          - (1183,180,1200,243) - 보이면 대기, n초 안 보이면 (945,215) 클릭
-
-  레이드 게이트 (서브퀘스트보다 먼저 확인, 아래 [레이드 게이트] 참고):
-    - fpdlem.png (transwhite) - (914,187,1005,242) - 클릭 안 함, 있으면 서브퀘스트 로직 생략
-
-  대기(클릭 안 함):
-    - gkdl.png         - (1176,120,1199,186)
-    - dpvlrwlsgod.png  - (1176,120,1199,186, gkdl.png와 동일 영역)
-
-  보정 클릭 직전에만 확인:
-    - rhkfgh.png - (10,33,1269,788) (아래 [보정 클릭 전 rhkfgh 확인] 참고)
-
-[fpdlswj.png 연속 동작] (_handle_fpdlswj_sequence)
-  발견되면 아래 순서를 전부 실행한 뒤에야 다음 턴으로 넘어갑니다 (하나의 '행동'):
-    1) fpdlswj.png 위치 더블클릭
-    2) (1065,735) 더블클릭
-    3) (740,500) 더블클릭
-    4) 10초 대기 (정지 버튼을 누르면 대기 중에도 바로 멈춥니다)
-
-[서브퀘스트] tjqmznptmxm.png는 "서브퀘스트가 지금 떠 있다"는 표시로만 씁니다 (그 자체는
-클릭 안 함). gkdl.png(메인퀘스트) 로직보다 먼저 확인해서, 서브퀘스트가 떠 있는 동안은
-메인퀘스트 쪽을 아예 확인하지 않고 이 분기만 처리합니다 ("서브퀘스트가 있으면 서브퀘스트
-먼저"):
-  - tjqm.png가 보이면: 대기 (gkdl.png 있을 때와 같은 맥락)
-  - tjqm.png가 [미인식 대기] n초 동안 안 보이면: (945,215) 1회 클릭
-  - tjqmznptmxm.png 자체가 안 보이면: 서브퀘스트가 없는 것이므로 메인퀘스트 쪽으로 넘어감
-[미인식 대기] n초 입력칸은 gkdl.png 타임아웃과 tjqm.png 타임아웃에 공통으로 적용됩니다
-(단, 두 타이머는 서로 별개로 셉니다 - 서브퀘스트 대기 중이라고 메인퀘스트 타이머가 같이
-줄어들거나 하지 않습니다).
-
-[레이드 게이트] fpdlem.png(transwhite)가 보이면 - 서브퀘스트(위 [서브퀘스트]) 로직
-전체를 이번 턴에 건너뛰고 바로 메인퀘스트(gkdl.png 등) 쪽으로 넘어갑니다. 레이드 중엔
-서브퀘스트 판단 자체가 의미가 없어서입니다. fpdlem.png 자체는 클릭 대상이 아닙니다.
-
-[HP 확인 / 귀환로직] (_handle_hp_missing_sequence, _perform_return_logic)
-매 턴 제일 먼저 hp.png를 확인합니다. 보이면(정상) 아무것도 안 하고 그냥 통과합니다.
-안 보이면:
-  1) 귀환로직: (45,195) -> (682,515) 클릭 쌍을 2회 빠르게 반복
-  2) 10초 대기 -> hp.png 재확인. 있으면 정상 흐름으로 복귀.
-  3) 없으면 다시 10초 대기 후 재확인 - 최대 30초까지 반복
-  4) 30초 안에 hp.png가 안 보이면 텔레그램 알림 후 정지
-귀환로직(_perform_return_logic)은 아래 물약구매 로직 시작할 때도 그대로 재사용합니다.
-
-[물약구매 로직] (_handle_potion_purchase_sequence)
-anfdir0ro.png가 보이면 발동합니다:
-  1) 귀환로직 수행
-  2) 10초 대기
-  3) 잡화버튼(wkqghkqjxms.png)을 찾아서 클릭
-  4) 잡화상점이 열렸는지(wkehdrnao.png - 자동구매 게이트와 같은 이미지/영역) 최대 30초까지
-     확인. 안 열리면 텔레그램 알림 후 정지.
-  5) 열렸으면 (70,155) -> (680,625) 클릭, (825,475) 더블클릭, (725,575) 클릭
-  6) 3초 대기 후 anfdiron.png로 구매 성공 여부 확인 (실패해도 경고 로그만 남기고 정상
-     흐름으로 계속 진행 - 정지하지 않음)
-
-[보정 클릭 전 rhkfgh 확인] gkdl.png/dpvlrwlsgod.png 타임아웃으로 (900,150)을 보정
-클릭하기 '직전'에 rhkfgh.png를 한 번 더 확인합니다. rhkfgh.png가 떠 있는 상태에서
-보정 클릭을 하면 다른 화면으로 넘어가버리기 때문에, 떠 있으면 이번엔 클릭을 건너뛰고
-미인식 타이머를 리셋해서 대기시간을 늘립니다 (사라질 때까지 계속 미룸).
-
-[보정 클릭 + 드래그] rhkfgh 확인까지 통과하면 (900,150)을 클릭하고, 곧바로 화면 드래그
-((453,346) -> (530,466))도 1회 실행합니다 (막혔을 때 화면을 조금 움직여서 인식이 다시
-되게 하기 위함). 이 둘이 '정체판정' 카운트를 공유합니다 - 중간에 다른 이미지가 하나도
-안 감지된 채로 이 보정 클릭+드래그가 [정체판정] 횟수만큼 연속되면 텔레그램 알림을
-보내고 매크로를 정지합니다.
-
-[매크로 로직] (_zeus_tick, 1초마다 1회)
-  1) SIMPLE_CLICK_IMAGES -> OFFSET_CLICK_IMAGES -> CONDITIONAL_CLICK_IMAGES ->
-     fpdlswj.png -> wkehdrnao.png -> tmzlfqnr.png 순서로 확인합니다. 이 중 하나라도
-     보이면(조건부는 조건까지 만족해야) 그 즉시 클릭(또는 연속 동작)하고 이번 턴은
-     끝냅니다. (gkdl.png/dpvlrwlsgod.png가 같이 보이고 있어도 이들이 있으면 무조건
-     처리합니다 - "대기 중에도 다른 이미지가 나오면 클릭해야 한다"는 요청 반영)
-  1.5) 위가 다 없으면 [서브퀘스트]를 확인합니다. tjqmznptmxm.png가 보이면 이번 턴은
-     서브퀘스트만 처리하고 아래 2)/3)(메인퀘스트)은 아예 안 봅니다.
-  2) 서브퀘스트도 없는데 gkdl.png 또는 dpvlrwlsgod.png가 보이면 - 대기 (둘 중 하나만
-     있어도 대기 - OR 조건)
-  3) 위가 다 없고 gkdl.png, dpvlrwlsgod.png도 둘 다 없는 상태(AND 조건 - 둘 다 없어야
-     '미인식'으로 취급)가 [미인식 대기 n초] 이상 계속되면, 화면 (900,150) 위치를
-     1회 클릭합니다 (막혔을 때 보정용). n초는 GUI에서 직접 입력해 바꿀 수 있습니다
-     (기본값 5초).
-  - 위 1)~3) 중 하나라도 감지/클릭이 일어나면 '미인식 지속시간' 타이머가 그 시점으로
-    리셋됩니다. gkdl.png만 보이는 상태가 계속돼도 "뭔가 인식은 되고 있는 상태"라
-    타이머가 리셋됩니다 (즉, n초 타임아웃은 gkdl도 없고 액션 이미지도 없을 때만 셉니다).
-
-  이미지 검색은 image_search를 씁니다. transwhite=True인 이미지는 원본 단계 없이
-  image_search.locate_transwhite로 바로 찾습니다. 나머지는
-  image_search.locate_smart(원본 -> 실패시 transwhite 순서)를 씁니다.
-
-  클릭은 찾은 위치의 중심(또는 900,150 같은 고정 좌표)에서 x, y를 각각 3~7px
-  무작위로 흔든 좌표를 씁니다(사람이 누르는 것처럼 매번 살짝 다른 자리를 누르기
-  위함). 다르게 흔들고 싶으면 _click_box_jittered / _click_point_jittered 호출 시
-  jitter_min/jitter_max를 따로 넘기면 됩니다.
 
 [클릭 후 마우스 치우기] 클릭(또는 더블클릭)이 끝나면 커서를 게임창(1280x800) 바로
 바깥의 (MOUSE_PARK_X, MOUSE_PARK_Y)로 옮깁니다. 커서가 이미지 위에 계속 남아있으면
@@ -176,11 +53,22 @@ click_at(x, y)가 먼저 win32api.SetCursorPos로 화면 절대좌표로 커서�
 (stop_YYYYMMDD_HHMMSS.png). 로그 파일과 스크린샷 파일명의 타임스탬프가 같은 순간에
 찍히니, 나중에 예측하기 힘든 상황이 생기면 둘을 같이 보면서(필요하면 이 대화에 올려서)
 어떤 상황이었는지 확인할 수 있습니다.
+
+[매크로 로직 개요] (전체 판단 순서는 zeus_macro_logic.py의 _zeus_tick 참고)
+  0) 사냥중(anfdir0ro/anfdiron 중 하나라도 있을 때)에만 hp.png 확인, 없으면 귀환로직
+  1) SIMPLE_CLICK_IMAGES -> OFFSET_CLICK_IMAGES -> CONDITIONAL_CLICK_IMAGES ->
+     fpdlswj/wkehdrnao(자동구매)/tmzlfqnr(스킬북)/anfdir0ro(물약구매) 순으로 확인,
+     있으면 즉시 처리
+  1.5) 서브퀘스트(tjqmznptmxm/tjqm, fpdlem 여부로 영역만 NORMAL/RAID 전환)
+  2) gkdl/dpvlrwlsgod 있으면 대기
+  3) 다 없으면 미인식 타이머 -> n초 넘으면 창끄기 -> rhkfgh 확인 -> 보정클릭+드래그,
+     연속 [정체판정]회 넘으면 텔레그램+정지
+새 이미지를 추가하려면 zeus_constants.py의 리스트에 한 줄만 추가하면 됩니다 (자세한
+설명은 그 파일 맨 위 docstring 참고).
 """
 import atexit
 import ctypes
 import sys
-import json
 import os
 import random
 import threading
@@ -188,354 +76,34 @@ import time
 
 import pyautogui
 import serial
-try:
-    from serial.tools import list_ports
-except Exception:
-    list_ports = None
 import tkinter as tk
 from tkinter import scrolledtext, ttk
 import win32api
 import win32con
 import win32gui
 
-import image_search  # noqa: F401  (다음 단계: run_loop 안에서 image_search.click_smart 사용 예정)
+import image_search
 from telegram_notifier import TelegramNotifierMixin, DEFAULT_SEND_INTERVAL
-
-# ==========================================================
-# [연결 설정] main.py와 같은 값을 씁니다. PC마다 포트 번호(COM3, COM4 등)가 다를 수
-# 있는데, 아래 PORT는 '아무 설정도 없을 때 맨 처음 시도해볼 기본값'일 뿐입니다.
-# 실제로는 1) GUI에 저장된 포트(zeus_config.json) -> 2) 그게 실패하면 자동 인식 순서로
-# 접속을 시도합니다 (connect_serial 참고).
-# ==========================================================
-PORT = 'COM3'
-BAUD_RATE = 115200
-
-# [아두이노 자동 인식] 지정한 포트로 연결이 실패하면, 연결된 장치 중 설명(description)에
-# 'Arduino'가 들어있거나 아래 VID:PID 조합과 일치하는 포트를 찾아 자동으로 재시도합니다.
-# CH340 등을 쓰는 클론 보드도 웬만하면 잡힙니다. 다른 보드/칩을 쓰신다면 여기에 값만
-# 추가하면 됩니다.
-KNOWN_ARDUINO_VID_PID = {
-    (0x2341, 0x8036),  # Arduino Leonardo
-    (0x2341, 0x8037),  # Arduino Micro
-    (0x2A03, 0x8036),  # Arduino Leonardo (구 VID)
-    (0x2A03, 0x8037),  # Arduino Micro (구 VID)
-    (0x1A86, 0x7523),  # CH340 계열 클론 보드
-}
-
-
-def find_arduino_port():
-    """연결된 시리얼 포트 중 아두이노로 보이는 것을 찾아 포트 이름을 돌려줍니다.
-    pyserial의 list_ports를 못 쓰거나 못 찾으면 None."""
-    if list_ports is None:
-        return None
-    try:
-        ports = list(list_ports.comports())
-    except Exception:
-        return None
-    for p in ports:
-        if "arduino" in (p.description or "").lower():
-            return p.device
-    for p in ports:
-        if (p.vid, p.pid) in KNOWN_ARDUINO_VID_PID:
-            return p.device
-    return None
-
-
-WINDOW_WIDTH = 300
-WINDOW_HEIGHT = 570
-WINDOW_X = 1620   # GUI 창이 켜질 때 위치할 화면 좌표 (좌상단 X)
-WINDOW_Y = 0       # GUI 창이 켜질 때 위치할 화면 좌표 (좌상단 Y)
-
-# [게임 창] 제목에 이 글자가 포함된 창을 찾아서 위치/크기를 바꿉니다.
-GAME_TITLE_PART = "제우스: 오만의 신"
-GAME_WINDOW_X = 0
-GAME_WINDOW_Y = 0
-GAME_WINDOW_W = 1280   # 1600 -> 1280으로 변경됨
-GAME_WINDOW_H = 800
-
-# [루프 주기] run_loop가 한 바퀴 돌고 나서 쉬는 시간(초). 이미지를 많이/자주 찾을 게
-# 아니라면 1초 정도가 무난합니다.
-LOOP_INTERVAL_SEC = 1.0
-
-# ==========================================================
-# [제우스 이미지/영역] region_image_tester.py로 잡은 좌표를 그대로 씁니다.
-# 이미지 파일은 image_lookup.IMAGE_DIRS(기본 images/ 폴더)에 있어야 합니다.
-# ==========================================================
-# ==========================================================
-# [단순 클릭 이미지 목록] "찾으면 그냥 클릭"만 하는 이미지는 여기 한 줄만 추가하면 됩니다.
-# 각 항목: (이미지 파일명, 검색영역(x1,y1,x2,y2), transwhite 여부)
-#   transwhite=True  -> 원본 단계 없이 바로 흰배경 무시 방식으로만 찾습니다 (image_search.locate_transwhite)
-#   transwhite=False -> 원본 -> 실패시 transwhite 순서로 찾습니다 (image_search.locate_smart)
-# 순서 = 확인 우선순위입니다 (위에 있을수록 먼저 확인).
-# ==========================================================
-SIMPLE_CLICK_IMAGES = [
-    ('apdlscpzm.png', (1144, 124, 1183, 381), True),
-    ('dhksfy.png',    (561, 266, 735, 355), False),
-    ('skip.png',      (1141, 44, 1256, 97), False),
-    ('tnfkr.png',     (508, 42, 835, 153), False),
-    ('wkdckr.png',    (749, 362, 982, 487), True),
-    ('ghkrdls.png',   (694, 471, 778, 530), False),
-    ('tnfkr1.png',    (1102, 715, 1183, 759), False),
-]
-
-# ==========================================================
-# [오프셋 클릭 이미지 목록] 이미지 중앙이 아니라 왼쪽위(left, top) 기준으로 x/y를 지정한
-# 범위만큼 방향성 있게 더한 위치를 클릭하는 이미지들. 한 줄만 추가하면 됩니다.
-# 각 항목: (이미지 파일명, 검색영역, transwhite 여부, x오프셋범위(min,max), y오프셋범위(min,max))
-# y오프셋을 안 쓰려면 (0, 0)으로 두면 됩니다 (원본 y 그대로, 흔들림 없음).
-# SIMPLE_CLICK_IMAGES 다음 순서로 확인됩니다.
-# ==========================================================
-OFFSET_CLICK_IMAGES = [
-    ('xbxhfldjf.png',   (824, 181, 857, 400), True,  (30, 40), (5, 10)),
-]
-
-# ==========================================================
-# [조건부 클릭 이미지 목록] "다른 특정 이미지가 없을 때만" 클릭하는 이미지들. 한 줄만
-# 추가하면 됩니다. SIMPLE_CLICK_IMAGES/OFFSET_CLICK_IMAGES 다음 순서로 확인됩니다.
-# 각 항목: (이미지 파일명, 검색영역, transwhite 여부,
-#           없어야 하는 조건 이미지 파일명, 조건 이미지 검색영역, 조건 이미지 transwhite 여부)
-# ==========================================================
-CONDITIONAL_CLICK_IMAGES = [
-    # skrkrl2.png는 tnfkr.png가 없을 때만 클릭합니다.
-    ('skrkrl2.png', (17, 44, 82, 99), False, 'tnfkr.png', (508, 42, 835, 153), False),
-]
-
-# ==========================================================
-# [연속 동작(시퀀스) 이미지] 발견되면 여러 단계를 순서대로 수행하는 특수 이미지들입니다.
-# 단순/오프셋 리스트와 달리 각자 로직이 달라서 개별 핸들러(_handle_*)로 처리합니다.
-# ==========================================================
-# fpdlswj.png - 있으면 '연속 동작' 수행: 이미지 더블클릭 -> (1065,735) 더블클릭 ->
-# (740,500) 더블클릭 -> 10초 대기. 이 전체를 하나의 행동으로 취급합니다.
-ZEUS_FPDLSWJ_IMG = 'fpdlswj.png'
-ZEUS_FPDLSWJ_REGION = (35, 229, 294, 310)
-ZEUS_FPDLSWJ_STEP2 = (1065, 735)
-ZEUS_FPDLSWJ_STEP3 = (740, 500)
-ZEUS_FPDLSWJ_WAIT_SEC = 10.0
-
-# rhkfgh.png - gkdl.png 타임아웃으로 (900,150)을 보정 클릭하기 '직전'에 확인합니다.
-# 이 이미지가 떠 있는 상태에서 보정 클릭을 하면 다른 화면으로 넘어가버리므로,
-# 떠 있으면 클릭을 건너뛰고 미인식 타이머를 리셋해서 대기시간을 늘립니다.
-ZEUS_RHKFGH_IMG = 'rhkfgh.png'
-ZEUS_RHKFGH_REGION = (10, 33, 1269, 788)
-
-# wkehdrnao.png(자동구매) - 발견되면 '연속 동작' 수행:
-#   1~6) 고정 좌표 6곳을 순서대로 1회씩 클릭
-#   7) ghkausdlstlr.png(화면인식)가 보일 때까지 (50,65)를 딜레이를 두고 반복 클릭
-ZEUS_AUTOBUY_IMG = 'wkehdrnao.png'
-ZEUS_AUTOBUY_REGION = (287, 701, 412, 771)
-ZEUS_AUTOBUY_CLICKS = [
-    (185, 160),
-    (690, 630),
-    (720, 585),
-    (215, 335),
-    (690, 630),
-    (720, 585),
-]
-ZEUS_AUTOBUY_WAIT_IMG = 'ghkausdlstlr.png'
-ZEUS_AUTOBUY_WAIT_REGION = (1027, 29, 1151, 109)
-ZEUS_AUTOBUY_REPEAT_CLICK = (50, 65)
-# [가정] 반복 클릭 사이 딜레이/최대 반복 횟수를 지정 안 해주셔서 임의로 잡았습니다.
-# 필요하면 이 두 값만 바꾸면 됩니다.
-ZEUS_AUTOBUY_REPEAT_DELAY_SEC = 1.0
-ZEUS_AUTOBUY_REPEAT_MAX = 30
-
-# tmzlfqnr.png(스킬북) - 발견되면 '연속 동작' 수행: 고정 좌표 3곳 클릭 -> 창끄기 로직 실행
-ZEUS_SKILLBOOK_IMG = 'tmzlfqnr.png'
-ZEUS_SKILLBOOK_REGION = (28, 117, 108, 203)
-ZEUS_SKILLBOOK_CLICKS = [
-    (75, 165),
-    (700, 625),
-    (725, 575),
-]
-
-# ==========================================================
-# [HP 확인 / 귀환로직] hp.png가 안 보이면(최우선으로, 매 턴 제일 먼저 확인) 귀환로직을
-# 수행합니다. 귀환로직은 물약구매 로직 시작할 때도 재사용합니다.
-#   1) (45,195) -> (682,515) 클릭 쌍을 2회 빠르게 반복
-#   2) 10초 대기 후 hp.png 재확인. 있으면 정상 흐름으로 복귀.
-#   3) 없으면 다시 10초 대기 후 재확인 - 최대 30초까지 반복
-#   4) 30초 안에 hp.png가 안 보이면 텔레그램 알림 후 정지
-# [가정] "2회 빠르게 반복"의 반복 사이 간격은 지정 안 해주셔서 0.2초로 짧게 잡았습니다.
-# ==========================================================
-ZEUS_HP_IMG = 'hp.png'
-ZEUS_HP_REGION = (179, 59, 214, 83)
-ZEUS_RETURN_CLICK1 = (45, 195)
-ZEUS_RETURN_CLICK2 = (682, 515)
-ZEUS_RETURN_REPEAT = 2
-ZEUS_RETURN_REPEAT_GAP_SEC = 0.2  # [가정] 반복 사이 간격
-ZEUS_HP_RECHECK_INTERVAL_SEC = 10.0
-ZEUS_HP_RECHECK_MAX_SEC = 30.0
-
-# ==========================================================
-# [물약구매 로직] anfdir0ro.png가 보이면 발동합니다:
-#   1) 귀환로직 수행 (위 [HP 확인 / 귀환로직]과 동일한 동작 재사용)
-#   2) 10초 대기
-#   3) 잡화버튼(wkqghkqjxms.png)을 찾아서 클릭
-#   4) 잡화상점이 열렸는지(wkehdrnao.png - 자동구매 게이트와 같은 이미지/영역을 재사용)
-#      최대 30초까지 확인. 안 열리면 텔레그램 알림 후 정지.
-#   5) 열렸으면 고정좌표 클릭(70,155)->(680,625)->(825,475)더블클릭->(725,575) 수행
-#   6) 3초 대기 후 anfdiron.png로 구매가 실제로 됐는지 확인 (로그만 남기고 정상 흐름 복귀)
-# [가정] 잡화상점 열림 확인 주기는 1초로 잡았습니다. 잡화버튼을 못 찾거나 anfdiron
-# 확인에 실패해도 명시적으로 정지하라고 하시지 않아서, 경고 로그만 남기고 계속
-# 진행하도록 했습니다 (정지가 필요한 두 곳: hp 30초 초과 / 상점 30초 미오픈만 정지).
-# ==========================================================
-ZEUS_POTION_TRIGGER_IMG = 'anfdir0ro.png'
-ZEUS_POTION_TRIGGER_REGION = (298, 692, 347, 755)
-ZEUS_GROCERY_BUTTON_IMG = 'wkqghkqjxms.png'
-ZEUS_GROCERY_BUTTON_REGION = (1002, 595, 1236, 764)
-ZEUS_SHOP_OPEN_CHECK_IMG = ZEUS_AUTOBUY_IMG        # wkehdrnao.png (자동구매 게이트와 동일)
-ZEUS_SHOP_OPEN_CHECK_REGION = ZEUS_AUTOBUY_REGION
-ZEUS_SHOP_OPEN_MAX_WAIT_SEC = 30.0
-ZEUS_SHOP_OPEN_POLL_SEC = 1.0  # [가정] 상점 열림 확인 주기
-ZEUS_POTION_CLICKS = [
-    (70, 155),
-    (680, 625),
-]
-ZEUS_POTION_DOUBLE_CLICK = (825, 475)
-ZEUS_POTION_LAST_CLICK = (725, 575)
-ZEUS_POTION_VERIFY_WAIT_SEC = 3.0
-ZEUS_POTION_VERIFY_IMG = 'anfdiron.png'
-ZEUS_POTION_VERIFY_REGION = ZEUS_POTION_TRIGGER_REGION  # 같은 영역, 다른 이미지(오타 아님)
-
-# [창끄기] gkdl.png 타임아웃으로 보정 클릭(900,150)을 실행하기 '직전'에 처리하는 정리
-# 동작 모음입니다. 나중에 항목이 더 추가될 수 있어서 별도로 분리해 뒀습니다.
-#   - dlsqpsxhflx.png가 있으면 그 이미지를 클릭
-#   - skrkrl.png가 있으면 (1222,70)을 클릭
-ZEUS_CHANGKKEUGI1_IMG = 'dlsqpsxhflx.png'
-ZEUS_CHANGKKEUGI1_REGION = (1197, 109, 1251, 160)
-ZEUS_CHANGKKEUGI2_IMG = 'skrkrl.png'
-ZEUS_CHANGKKEUGI2_REGION = (1130, 712, 1198, 789)
-ZEUS_CHANGKKEUGI2_CLICK = (1222, 70)
-
-# [정체 감지] 보정 클릭(900,150)+드래그, HP 미확인, 잡화상점 미오픈 등 "자동 정지가
-# 필요한 상황"이 연속 이 횟수 이상 발생하면 텔레그램으로 알리고 매크로를 정지합니다.
-# (지금은 보정 클릭+드래그 쪽만 이 카운트를 실제로 세고, HP/상점 미오픈은 각자 자체
-# 타임아웃 즉시 정지합니다 - 전부 같은 텔레그램 이벤트('stuck')를 씁니다) GUI에서 값을
-# 바꿀 수 있습니다.
-DEFAULT_STUCK_REPEAT_THRESHOLD = 3
-
-# ==========================================================
-# [서브퀘스트] gkdl.png(메인퀘스트) 관련 로직보다 먼저 확인합니다. tjqmznptmxm.png가
-# 보이면(서브퀘스트가 진행 중이라는 뜻) 이번 턴은 서브퀘스트만 처리하고, 메인퀘스트 쪽
-# (gkdl.png 등)은 아예 확인하지 않습니다 - "서브퀘스트가 있을 땐 서브퀘스트부터" 반영.
-#   - tjqm.png가 보이면: 대기 (아무것도 안 함, gkdl.png 있을 때와 같은 맥락)
-#   - tjqm.png가 [미인식 대기] n초 동안 안 보이면: (945,215) 1회 클릭
-#   - tjqmznptmxm.png 자체가 안 보이면: 서브퀘스트가 없는 것이므로 바로 메인퀘스트로 넘어감
-# tjqmznptmxm.png 자체는 이제 클릭 대상이 아니라 '서브퀘스트가 떠 있는지' 확인하는
-# 용도로만 씁니다.
-# ==========================================================
-ZEUS_SUBQUEST_GATE_IMG = 'tjqmznptmxm.png'
-ZEUS_SUBQUEST_GATE_REGION = (821, 185, 860, 221)
-ZEUS_SUBQUEST_CHECK_IMG = 'tjqm.png'
-ZEUS_SUBQUEST_CHECK_REGION = (1183, 180, 1200, 243)
-ZEUS_SUBQUEST_CLICK = (945, 215)
-
-# fpdlem.png(레이드, transwhite) - 있으면 서브퀘스트(tjqm.png/tjqmznptmxm.png) 관련
-# 로직을 이번 턴에 건너뛰고 바로 메인퀘스트(gkdl.png 등) 쪽으로 넘어갑니다. 레이드
-# 이미지 자체는 클릭 대상이 아니라 '서브퀘스트를 생략해야 하는지' 확인하는 게이트입니다.
-ZEUS_RAID_GATE_IMG = 'fpdlem.png'
-ZEUS_RAID_GATE_REGION = (914, 187, 1005, 242)
-
-# [미인식 시 드래그] 액션 이미지/서브퀘스트/메인퀘스트 아무것도 못 찾은 상태가 n초
-# 넘으면, (900,150) 보정 클릭에 이어 이 드래그도 1회 실행합니다. (막혔을 때 화면을
-# 조금 움직여서 인식이 다시 되게 하기 위함)
-ZEUS_NO_MATCH_DRAG_START = (453, 346)
-ZEUS_NO_MATCH_DRAG_END = (530, 466)
-
-# gkdl.png - 있으면 대기 (클릭 안 함). 액션 이미지들이 전부 없을 때만 확인합니다.
-ZEUS_WAIT_IMG = 'gkdl.png'
-ZEUS_WAIT_REGION = (1176, 120, 1199, 186)
-
-# dpvlrwlsgod.png - gkdl.png와 같은 자리에서 같이 나타난다고 하셔서 같은 영역을 씁니다.
-# (실제로 다른 위치면 알려주세요) gkdl.png와 OR 조건으로 묶여서, 둘 중 하나라도 있으면 대기,
-# 둘 다 없어야 미인식으로 취급합니다.
-ZEUS_WAIT2_IMG = 'dpvlrwlsgod.png'
-ZEUS_WAIT2_REGION = ZEUS_WAIT_REGION
-
-# [미인식 타임아웃 보정 클릭] 액션 이미지 3개도, gkdl.png도 전부 안 보이는 상태가
-# n초 이상 지속되면 이 좌표를 1회 클릭합니다. n초는 GUI 입력칸에서 바꿀 수 있습니다.
-FALLBACK_CLICK_X = 900
-FALLBACK_CLICK_Y = 150
-DEFAULT_NO_IMAGE_TIMEOUT_SEC = 5.0
-
-# [이미지 검색 오차범위 (tolerance)] AHK의 shade variation과 동일한 개념 (0~255).
-ZEUS_TOLERANCE = 15
-ZEUS_TRANSWHITE_TOLERANCE = 15  # transwhite 전용 이미지(apdlscpzm.png)에 쓰는 오차범위
-
-# [클릭 좌표 랜덤화] 클릭할 때 찾은 위치의 중심에서 x, y 각각 이 범위만큼 무작위로 흔듭니다.
-# (요청하신 대로 특별한 말이 없으면 기본값을 씁니다)
-CLICK_JITTER_MIN = 3
-CLICK_JITTER_MAX = 7
-
-# [클릭 후 마우스 치우기] 클릭할 때마다 끝나고 나서 게임창(1280x800) 바깥의 이 좌표로
-# 커서를 옮깁니다. 이미지 위에 커서가 계속 남아있으면 호버 상태 때문에 다음 인식이
-# 꼬일 수 있어서입니다. 게임창 오른쪽 바로 바깥, 이미지테스터/GUI 창과도 안 겹치는
-# 자리로 잡았습니다 (게임창 0~1280, 테스터 1350~, GUI 1620~).
-MOUSE_PARK_X = GAME_WINDOW_X + GAME_WINDOW_W + 10
-MOUSE_PARK_Y = 10
-
-# [더블클릭 두 번째 클릭까지의 간격] 아두이노 펌웨어가 같은 버튼을 150ms 안에 다시
-# 누르면 무시하도록 되어 있어서(디바운스), 그보다 여유 있게 잡습니다.
-DOUBLE_CLICK_GAP_SEC = 0.15
-
-# ==========================================================
-# [설정 저장/불러오기] "저장" 버튼을 누르면 여기(zeus_config.json)에 저장되고,
-# 다음에 켤 때 저장된 값으로 시작합니다. 파일이 없거나 깨져 있으면 기본값을 씁니다.
-# region_image_tester.py의 tester_config.json과 같은 패턴입니다.
-# ==========================================================
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-CONFIG_PATH = os.path.join(BASE_DIR, "zeus_config.json")
-
-# [로그 파일 / 정지 스크린샷 폴더] 미리 만들어두시면 확실하지만, 없어도 프로그램이
-# 자동으로 만듭니다. 나중에 예측하기 힘든 상황을 로그+스크린샷으로 같이 보면서
-# 확인하는 용도입니다.
-LOG_DIR = os.path.join(BASE_DIR, "logs")
-SCREENSHOT_DIR = os.path.join(BASE_DIR, "screenshots")
-
-DEFAULT_CONFIG = {
-    "serial_port": PORT,
-    "timeout_sec": DEFAULT_NO_IMAGE_TIMEOUT_SEC,
-    "tolerance": ZEUS_TOLERANCE,
-    "transwhite_tolerance": ZEUS_TRANSWHITE_TOLERANCE,
-    "stuck_threshold": DEFAULT_STUCK_REPEAT_THRESHOLD,
-    "telegram_bot_token": "",
-    "telegram_chat_id": "",
-    "telegram_pc_name": "1",
-    "telegram_send_interval": DEFAULT_SEND_INTERVAL,
-    "telegram_event_stuck_enabled": True,
-    "telegram_event_stuck_count": 2,
-}
-
-
-def load_config():
-    """zeus_config.json을 읽어 기본값에 덮어씁니다. 파일이 없거나 깨져 있으면 기본값만 돌려줍니다."""
-    cfg = dict(DEFAULT_CONFIG)
-    try:
-        if os.path.exists(CONFIG_PATH):
-            with open(CONFIG_PATH, "r", encoding="utf-8") as f:
-                saved = json.load(f)
-            for key in DEFAULT_CONFIG:
-                if key in saved:
-                    cfg[key] = saved[key]
-    except Exception:
-        pass  # 설정 파일이 깨져 있어도 기본값으로 정상 실행되어야 합니다.
-    return cfg
-
-
-def save_config(cfg):
-    """현재 설정을 zeus_config.json에 저장합니다. 실패해도 프로그램은 계속 돌아야 하므로 예외를 삼킵니다."""
-    try:
-        with open(CONFIG_PATH, "w", encoding="utf-8") as f:
-            json.dump(cfg, f, ensure_ascii=False, indent=2)
-        return True
-    except Exception:
-        return False
-
+from zeus_macro_logic import MacroLogicMixin
+from zeus_constants import (
+    list_ports, find_arduino_port,
+    PORT, BAUD_RATE,
+    WINDOW_WIDTH, WINDOW_HEIGHT, WINDOW_X, WINDOW_Y,
+    GAME_TITLE_PART, GAME_WINDOW_X, GAME_WINDOW_Y, GAME_WINDOW_W, GAME_WINDOW_H,
+    LOOP_INTERVAL_SEC,
+    ZEUS_TOLERANCE, ZEUS_TRANSWHITE_TOLERANCE, DEFAULT_STUCK_REPEAT_THRESHOLD,
+    DEFAULT_NO_IMAGE_TIMEOUT_SEC, FALLBACK_CLICK_X, FALLBACK_CLICK_Y,
+    ZEUS_NO_MATCH_DRAG_START, ZEUS_NO_MATCH_DRAG_END,
+    CLICK_JITTER_MIN, CLICK_JITTER_MAX,
+    MOUSE_PARK_X, MOUSE_PARK_Y, DOUBLE_CLICK_GAP_SEC,
+    LOG_DIR, SCREENSHOT_DIR,
+    load_config, save_config,
+)
 
 serial_lock = threading.Lock()
 
 
-class ZeusController(TelegramNotifierMixin):
+class ZeusController(MacroLogicMixin, TelegramNotifierMixin):
     def __init__(self, root):
         self.root = root
         self.root.title("제우스 매크로")
@@ -1106,49 +674,6 @@ class ZeusController(TelegramNotifierMixin):
 
             time.sleep(LOOP_INTERVAL_SEC)
 
-    def get_no_image_timeout_sec(self):
-        try:
-            v = float(self.timeout_sec_var.get())
-            if v > 0:
-                return v
-        except Exception:
-            pass
-        return DEFAULT_NO_IMAGE_TIMEOUT_SEC
-
-    def get_tolerance(self):
-        try:
-            v = int(float(self.tolerance_var.get()))
-            if 0 <= v <= 255:
-                return v
-        except Exception:
-            pass
-        return ZEUS_TOLERANCE
-
-    def get_transwhite_tolerance(self):
-        try:
-            v = int(float(self.transwhite_tolerance_var.get()))
-            if 0 <= v <= 255:
-                return v
-        except Exception:
-            pass
-        return ZEUS_TRANSWHITE_TOLERANCE
-
-    def get_stuck_repeat_threshold(self):
-        try:
-            v = int(float(self.stuck_threshold_var.get()))
-            if v >= 1:
-                return v
-        except Exception:
-            pass
-        return DEFAULT_STUCK_REPEAT_THRESHOLD
-
-    def _mark_activity(self):
-        """뭔가 인식되거나 처리됐다는 뜻입니다. 미인식 타이머와 '정체 연속 카운트'를
-        같이 리셋합니다 (진짜 진전이 있었을 때만 부릅니다 - rhkfgh로 보류된 경우는
-        해당 안 됨)."""
-        self._last_activity_time = time.time()
-        self._fallback_click_streak = 0
-
     # ------------------------------------------------------
     # 설정 저장 (매크로 탭 + 텔레그램 탭 값을 전부 zeus_config.json에 저장)
     # ------------------------------------------------------
@@ -1171,378 +696,6 @@ class ZeusController(TelegramNotifierMixin):
             self.log("- 설정을 저장했습니다 (zeus_config.json) - 다음에 켤 때 이 값으로 시작합니다")
         else:
             self.log("- 설정 저장 실패 (zeus_config.json에 쓸 수 없습니다)")
-
-    def _zeus_tick(self):
-        """한 바퀴치 판단 + 클릭.
-
-        순서:
-          0) hp.png가 안 보이면 다른 판단 없이 귀환로직부터 처리 (최우선 안전 체크)
-          1) SIMPLE_CLICK_IMAGES / OFFSET_CLICK_IMAGES / CONDITIONAL_CLICK_IMAGES
-             (각 리스트 순서대로) / fpdlswj.png / wkehdrnao.png / tmzlfqnr.png /
-             anfdir0ro.png(물약구매) - 있으면 즉시 클릭(연속 동작 이미지는 시퀀스 수행)
-             (gkdl.png/dpvlrwlsgod.png 여부와 무관)
-          1.5) 위가 다 없으면 fpdlem.png(레이드) 확인 - 있으면 서브퀘스트 생략. 없으면
-               서브퀘스트(tjqmznptmxm.png) 확인. 있으면 이번 턴은 서브퀘스트만 처리하고
-               메인퀘스트(2, 3)는 아예 안 봅니다.
-          2) 서브퀘스트도 없는데 gkdl.png 또는 dpvlrwlsgod.png가 있으면 - 대기 (OR 조건)
-          3) 위가 다 없고 gkdl.png, dpvlrwlsgod.png도 둘 다 없으면(AND 조건) -
-             미인식 지속시간을 재서, n초 넘으면 [창끄기] -> rhkfgh 확인 -> (900,150) 보정
-             클릭 -> 화면 드래그 순서로 처리하고, 이 보정 클릭+드래그가 연속 [정체판정]회
-             이상 나오면 텔레그램 알림 후 정지
-        """
-        now = time.time()
-        tol = self.get_tolerance()
-        tw_tol = self.get_transwhite_tolerance()
-
-        # 0) [최우선 안전 체크] hp.png가 안 보이면 다른 판단 없이 귀환로직부터 처리합니다.
-        # hp.png가 정상적으로 보일 때는(대부분의 경우) 아무것도 안 하고 그냥 통과합니다 -
-        # 여기서 활동 타이머를 건드리지 않아야 미인식 타임아웃 로직이 정상 작동합니다.
-        hp_found = image_search.locate_smart(ZEUS_HP_IMG, ZEUS_HP_REGION,
-                                              tolerance=tol, transwhite_tolerance=tw_tol)
-        if not hp_found:
-            self._handle_hp_missing_sequence()
-            return
-
-        # 1) 단순 클릭 이미지들 - 새 이미지 추가는 SIMPLE_CLICK_IMAGES에 한 줄만 넣으면 됩니다.
-        for img_name, region, transwhite in SIMPLE_CLICK_IMAGES:
-            if transwhite:
-                box = image_search.locate_transwhite(img_name, region, tolerance=tw_tol)
-            else:
-                box = image_search.locate_smart(img_name, region,
-                                                 tolerance=tol, transwhite_tolerance=tw_tol)
-            if box:
-                self._click_box_jittered(box)
-                self.log(f"- {img_name} 발견 -> 클릭")
-                self._mark_activity()
-                return
-
-        # 오프셋 클릭 이미지들 - 새 이미지 추가는 OFFSET_CLICK_IMAGES에 한 줄만 넣으면 됩니다.
-        for img_name, region, transwhite, x_off, y_off in OFFSET_CLICK_IMAGES:
-            if transwhite:
-                box = image_search.locate_transwhite(img_name, region, tolerance=tw_tol)
-            else:
-                box = image_search.locate_smart(img_name, region,
-                                                 tolerance=tol, transwhite_tolerance=tw_tol)
-            if box:
-                self._click_box_offset(box, x_off, y_off)
-                self.log(f"- {img_name} 발견 -> 클릭 (오프셋)")
-                self._mark_activity()
-                return
-
-        # 조건부 클릭 이미지들 - "다른 이미지가 없을 때만" 클릭. 새 항목은
-        # CONDITIONAL_CLICK_IMAGES에 한 줄만 추가하면 됩니다.
-        for img_name, region, transwhite, cond_img, cond_region, cond_transwhite \
-                in CONDITIONAL_CLICK_IMAGES:
-            if cond_transwhite:
-                cond_found = image_search.locate_transwhite(cond_img, cond_region, tolerance=tw_tol)
-            else:
-                cond_found = image_search.locate_smart(cond_img, cond_region,
-                                                         tolerance=tol, transwhite_tolerance=tw_tol)
-            if cond_found:
-                continue  # 조건 이미지가 있으니 이 항목은 건너뛰고 다음 조건부 이미지를 봅니다.
-
-            if transwhite:
-                box = image_search.locate_transwhite(img_name, region, tolerance=tw_tol)
-            else:
-                box = image_search.locate_smart(img_name, region,
-                                                 tolerance=tol, transwhite_tolerance=tw_tol)
-            if box:
-                self._click_box_jittered(box)
-                self.log(f"- {img_name} 발견 -> 클릭 ({cond_img} 없음 조건 만족)")
-                self._mark_activity()
-                return
-
-        # fpdlswj.png - 발견되면 정해진 연속 동작(더블클릭 3번 + 10초 대기)을 수행합니다.
-        box = image_search.locate_smart(ZEUS_FPDLSWJ_IMG, ZEUS_FPDLSWJ_REGION,
-                                         tolerance=tol, transwhite_tolerance=tw_tol)
-        if box:
-            self._handle_fpdlswj_sequence(box)
-            self._mark_activity()  # 시퀀스가 오래 걸리므로 시간을 다시 잽니다
-            return
-
-        # wkehdrnao.png(자동구매) - 발견되면 정해진 연속 동작(고정좌표 6클릭 + 반복클릭)을 수행합니다.
-        box = image_search.locate_smart(ZEUS_AUTOBUY_IMG, ZEUS_AUTOBUY_REGION,
-                                         tolerance=tol, transwhite_tolerance=tw_tol)
-        if box:
-            self._handle_autobuy_sequence(box)
-            self._mark_activity()
-            return
-
-        # tmzlfqnr.png(스킬북) - 발견되면 고정좌표 3클릭 + 창끄기 로직을 수행합니다.
-        box = image_search.locate_smart(ZEUS_SKILLBOOK_IMG, ZEUS_SKILLBOOK_REGION,
-                                         tolerance=tol, transwhite_tolerance=tw_tol)
-        if box:
-            self._handle_skillbook_sequence(box, tol, tw_tol)
-            self._mark_activity()
-            return
-
-        # anfdir0ro.png(물약구매 트리거) - 발견되면 물약구매 로직 전체를 수행합니다.
-        box = image_search.locate_smart(ZEUS_POTION_TRIGGER_IMG, ZEUS_POTION_TRIGGER_REGION,
-                                         tolerance=tol, transwhite_tolerance=tw_tol)
-        if box:
-            self._handle_potion_purchase_sequence()
-            self._mark_activity()
-            return
-
-        # [레이드 게이트] fpdlem.png(레이드)가 보이면 서브퀘스트(tjqm/tjqmznptmxm) 관련
-        # 로직 전체를 이번 턴에 건너뜁니다 - 레이드 중엔 서브퀘스트 판단이 의미가 없어서입니다.
-        raid_active = image_search.locate_transwhite(ZEUS_RAID_GATE_IMG, ZEUS_RAID_GATE_REGION,
-                                                       tolerance=tw_tol)
-        if raid_active:
-            self._subquest_wait_start = None  # 나중에 다시 켤 때 오래된 타이머가 안 남게 정리
-        else:
-            # [서브퀘스트] 메인퀘스트(gkdl.png) 쪽보다 먼저 확인합니다. tjqmznptmxm.png가
-            # 보이면 서브퀘스트가 진행 중이라는 뜻이라, 이번 턴은 서브퀘스트만 처리하고
-            # 메인퀘스트 쪽(gkdl.png 등)은 아예 확인하지 않습니다.
-            if image_search.locate_smart(ZEUS_SUBQUEST_GATE_IMG, ZEUS_SUBQUEST_GATE_REGION,
-                                          tolerance=tol, transwhite_tolerance=tw_tol):
-                if image_search.locate_smart(ZEUS_SUBQUEST_CHECK_IMG, ZEUS_SUBQUEST_CHECK_REGION,
-                                              tolerance=tol, transwhite_tolerance=tw_tol):
-                    self.log("- tjqm 발견 - 서브퀘스트 대기")
-                    self._subquest_wait_start = None  # 다음에 또 안 보이면 처음부터 다시 잽니다.
-                    self._mark_activity()
-                    return
-
-                # tjqm.png가 안 보입니다 - 언제부터 안 보였는지 재서 n초 넘으면 보정 클릭.
-                if self._subquest_wait_start is None:
-                    self._subquest_wait_start = now
-                timeout = self.get_no_image_timeout_sec()  # gkdl.png와 같은 입력칸(n초)을 공유합니다.
-                elapsed_sub = now - self._subquest_wait_start
-                if elapsed_sub >= timeout:
-                    self.log(f"- tjqm 미인식 {timeout:.1f}초 -> 서브퀘스트 보정 클릭 "
-                             f"{ZEUS_SUBQUEST_CLICK}")
-                    self._click_point_jittered(*ZEUS_SUBQUEST_CLICK)
-                    self._subquest_wait_start = now  # 매 턴마다 계속 클릭하지 않도록 리셋
-                    self._mark_activity()
-                # 아직 n초가 안 지났으면 이번 턴은 그냥 대기 (메인퀘스트로 안 넘어감)
-                return
-
-            # tjqmznptmxm.png 자체가 안 보이면 서브퀘스트가 없는 것이므로 타이머만 정리합니다.
-            self._subquest_wait_start = None
-
-        # (raid_active였거나, 서브퀘스트가 없었으면) 메인퀘스트(gkdl.png 등) 쪽으로 진행합니다.
-
-        # 2) gkdl.png 또는 dpvlrwlsgod.png - 액션 이미지가 전부 없을 때만 확인.
-        #    둘 중 하나라도 있으면 대기 (클릭 안 함). 둘 다 없어야 3)의 미인식으로 취급합니다.
-        if image_search.locate_smart(ZEUS_WAIT_IMG, ZEUS_WAIT_REGION,
-                                      tolerance=tol, transwhite_tolerance=tw_tol):
-            self.log("- gkdl 발견 - 대기")
-            self._mark_activity()
-            return
-
-        if image_search.locate_smart(ZEUS_WAIT2_IMG, ZEUS_WAIT2_REGION,
-                                      tolerance=tol, transwhite_tolerance=tw_tol):
-            self.log("- dpvlrwlsgod 발견 - 대기")
-            self._mark_activity()
-            return
-
-        # 3) 여기까지 왔다는 건 아무것도 안 보인다는 뜻입니다. n초 넘게 지속되면 보정 클릭.
-        timeout = self.get_no_image_timeout_sec()
-        elapsed = now - self._last_activity_time
-        if elapsed >= timeout:
-            # [창끄기] 보정 클릭 직전에 처리해야 하는 정리 동작들 (나중에 항목이 늘어날 수 있음)
-            self._perform_chang_kkeugi(tol, tw_tol)
-
-            # [클릭 직전 확인] rhkfgh.png가 떠 있는 상태에서 (900,150)을 클릭하면 다른
-            # 화면으로 넘어가버리므로, 클릭 바로 직전에 한 번 더 확인합니다. 떠 있으면
-            # 이번엔 클릭을 건너뛰고 타이머를 리셋해서 대기시간을 늘립니다 (사라질 때까지
-            # 계속 미룸). 이 경우는 '진짜 진전'이 아니라서 정체 카운트는 건드리지 않습니다.
-            if image_search.locate_smart(ZEUS_RHKFGH_IMG, ZEUS_RHKFGH_REGION,
-                                          tolerance=tol, transwhite_tolerance=tw_tol):
-                self.log("- rhkfgh 발견 -> 보정 클릭 보류, 대기시간 연장")
-                self._last_activity_time = time.time()
-                return
-
-            self.log(f"- {timeout:.1f}초간 아무 이미지도 인식 안 됨 -> 보정 클릭 "
-                     f"({FALLBACK_CLICK_X},{FALLBACK_CLICK_Y})")
-            self._click_point_jittered(FALLBACK_CLICK_X, FALLBACK_CLICK_Y)
-
-            self.log(f"- 이어서 화면 드래그 {ZEUS_NO_MATCH_DRAG_START} -> {ZEUS_NO_MATCH_DRAG_END}")
-            self.drag_from_to(ZEUS_NO_MATCH_DRAG_START, ZEUS_NO_MATCH_DRAG_END)
-
-            self._last_activity_time = time.time()  # 매 턴마다 계속 반복하지 않도록 리셋
-
-            # [정체 감지] 이 보정 클릭+드래그가 '중간에 진전 없이' 연속으로 몇 번째인지 셉니다.
-            # 다른 이미지가 하나라도 감지되면(_mark_activity) 이 카운트는 0으로 돌아갑니다.
-            self._fallback_click_streak += 1
-            threshold = self.get_stuck_repeat_threshold()
-            if self._fallback_click_streak >= threshold:
-                msg = (f"제우스 매크로가 정체된 것 같습니다 (보정 클릭+드래그가 "
-                       f"{self._fallback_click_streak}회 연속 발생). 매크로를 정지합니다.")
-                self.log(f"- [경고] {msg}")
-                self.notify_event("stuck", msg, once=False)
-                self.root.after(0, self.on_stop)
-                return
-
-    def _perform_chang_kkeugi(self, tol, tw_tol):
-        """'창끄기' - 보정 클릭(gkdl 타임아웃) 실행 직전에 처리하는 정리 동작 모음입니다.
-        나중에 항목이 더 추가될 수 있어서 별도 함수로 분리해 뒀습니다. (지금은 2개)"""
-        box = image_search.locate_smart(ZEUS_CHANGKKEUGI1_IMG, ZEUS_CHANGKKEUGI1_REGION,
-                                         tolerance=tol, transwhite_tolerance=tw_tol)
-        if box:
-            self._click_box_jittered(box)
-            self.log("- [창끄기] dlsqpsxhflx 발견 -> 클릭")
-
-        box2 = image_search.locate_smart(ZEUS_CHANGKKEUGI2_IMG, ZEUS_CHANGKKEUGI2_REGION,
-                                          tolerance=tol, transwhite_tolerance=tw_tol)
-        if box2:
-            self._click_point_jittered(*ZEUS_CHANGKKEUGI2_CLICK)
-            self.log(f"- [창끄기] skrkrl 발견 -> {ZEUS_CHANGKKEUGI2_CLICK} 클릭")
-
-    def _handle_autobuy_sequence(self, box):
-        """wkehdrnao.png(자동구매) 발견 시 정해진 순서를 한 번에 수행합니다:
-          1~6) 고정 좌표 6곳을 순서대로 1회씩 클릭
-          7) ghkausdlstlr.png(화면인식)가 보일 때까지 (50,65)를 딜레이를 두고 반복 클릭
-        [가정] 반복 클릭 사이 딜레이(ZEUS_AUTOBUY_REPEAT_DELAY_SEC)와 최대 반복 횟수
-        (ZEUS_AUTOBUY_REPEAT_MAX)는 지정해주신 값이 없어서 1초/30회로 임의로 잡았습니다."""
-        self.log("- wkehdrnao(자동구매) 발견 -> 연속 동작 시작")
-        for i, (x, y) in enumerate(ZEUS_AUTOBUY_CLICKS, 1):
-            self._click_point_jittered(x, y)
-            self.log(f"  {i}) ({x},{y}) 클릭 완료")
-
-        tol = self.get_tolerance()
-        tw_tol = self.get_transwhite_tolerance()
-        self.log(f"  - ghkausdlstlr 인식될 때까지 {ZEUS_AUTOBUY_REPEAT_CLICK} 반복 클릭 시작")
-        attempts = 0
-        while self.state != "IDLE":
-            found = image_search.locate_smart(ZEUS_AUTOBUY_WAIT_IMG, ZEUS_AUTOBUY_WAIT_REGION,
-                                               tolerance=tol, transwhite_tolerance=tw_tol)
-            if found:
-                self.log(f"  - ghkausdlstlr 인식됨 (반복 {attempts}회 만에 완료)")
-                break
-            attempts += 1
-            if attempts > ZEUS_AUTOBUY_REPEAT_MAX:
-                self.log(f"  ⚠ ghkausdlstlr을 {ZEUS_AUTOBUY_REPEAT_MAX}번 반복해도 못 찾아 "
-                         f"반복을 중단했습니다")
-                break
-            self._click_point_jittered(*ZEUS_AUTOBUY_REPEAT_CLICK)
-            self._sleep_interruptible(ZEUS_AUTOBUY_REPEAT_DELAY_SEC)
-        self.log("- wkehdrnao(자동구매) 연속 동작 종료")
-
-    def _handle_skillbook_sequence(self, box, tol, tw_tol):
-        """tmzlfqnr.png(스킬북) 발견 시 정해진 순서를 한 번에 수행합니다:
-          1~3) 고정 좌표 3곳을 순서대로 1회씩 클릭
-          4) 창끄기 로직 실행 (_perform_chang_kkeugi)"""
-        self.log("- tmzlfqnr(스킬북) 발견 -> 연속 동작 시작")
-        for i, (x, y) in enumerate(ZEUS_SKILLBOOK_CLICKS, 1):
-            self._click_point_jittered(x, y)
-            self.log(f"  {i}) ({x},{y}) 클릭 완료")
-
-        self._perform_chang_kkeugi(tol, tw_tol)
-        self.log("- tmzlfqnr(스킬북) 연속 동작 종료")
-
-    def _perform_return_logic(self):
-        """귀환로직: (45,195) -> (682,515) 클릭 쌍을 ZEUS_RETURN_REPEAT회 빠르게
-        반복합니다. hp.png 미확인 시, 그리고 물약구매 로직 시작할 때 재사용합니다."""
-        self.log("- 귀환로직 수행")
-        for i in range(ZEUS_RETURN_REPEAT):
-            self._click_point_jittered(*ZEUS_RETURN_CLICK1)
-            self._click_point_jittered(*ZEUS_RETURN_CLICK2)
-            if i < ZEUS_RETURN_REPEAT - 1:
-                time.sleep(ZEUS_RETURN_REPEAT_GAP_SEC)
-
-    def _handle_hp_missing_sequence(self):
-        """hp.png가 안 보일 때: 귀환로직 -> 10초 대기 -> hp.png 재확인을 최대 30초까지
-        반복합니다. 그래도 안 보이면 텔레그램 알림 후 정지합니다."""
-        self.log("- hp 미확인 -> 귀환로직 시작")
-        self._perform_return_logic()
-
-        tol = self.get_tolerance()
-        tw_tol = self.get_transwhite_tolerance()
-        elapsed = 0.0
-        while elapsed < ZEUS_HP_RECHECK_MAX_SEC and self.state != "IDLE":
-            self._sleep_interruptible(ZEUS_HP_RECHECK_INTERVAL_SEC)
-            elapsed += ZEUS_HP_RECHECK_INTERVAL_SEC
-            if self.state == "IDLE":
-                return
-            found = image_search.locate_smart(ZEUS_HP_IMG, ZEUS_HP_REGION,
-                                               tolerance=tol, transwhite_tolerance=tw_tol)
-            if found:
-                self.log(f"- hp 재확인됨 ({elapsed:.0f}초 경과) - 정상 흐름으로 복귀")
-                self._mark_activity()
-                return
-            self.log(f"- hp 여전히 안 보임 ({elapsed:.0f}초 경과)")
-
-        if self.state == "IDLE":
-            return
-        msg = f"hp.png가 {ZEUS_HP_RECHECK_MAX_SEC:.0f}초 동안 확인되지 않았습니다. 매크로를 정지합니다."
-        self.log(f"- [경고] {msg}")
-        self.notify_event("stuck", msg, once=False)
-        self.root.after(0, self.on_stop)
-
-    def _handle_potion_purchase_sequence(self):
-        """anfdir0ro.png 발견 시 물약구매 전체 흐름을 수행합니다:
-          1) 귀환로직 수행 (_perform_return_logic 재사용)
-          2) 10초 대기
-          3) 잡화버튼(wkqghkqjxms.png) 클릭
-          4) 잡화상점 열림(wkehdrnao.png) 확인 - 최대 30초, 안 열리면 텔레그램+정지
-          5) 열렸으면 고정좌표 클릭 4단계(마지막 직전은 더블클릭)
-          6) 3초 대기 후 anfdiron.png로 구매 성공 여부 확인 (실패해도 경고 로그만, 정지 안 함)
-        """
-        self.log("- anfdir0ro 발견 -> 물약구매 로직 시작")
-        self._perform_return_logic()
-
-        self.log("- 10초 대기")
-        self._sleep_interruptible(10.0)
-        if self.state == "IDLE":
-            return
-
-        tol = self.get_tolerance()
-        tw_tol = self.get_transwhite_tolerance()
-
-        box = image_search.locate_smart(ZEUS_GROCERY_BUTTON_IMG, ZEUS_GROCERY_BUTTON_REGION,
-                                         tolerance=tol, transwhite_tolerance=tw_tol)
-        if box:
-            self._click_box_jittered(box)
-            self.log("- 잡화버튼(wkqghkqjxms) 클릭")
-        else:
-            self.log("- ⚠ 잡화버튼(wkqghkqjxms)을 못 찾았습니다 - 그래도 상점이 열리는지는 계속 확인합니다")
-
-        # [잡화상점 열림 확인] wkehdrnao.png가 보일 때까지 최대 30초 대기.
-        elapsed = 0.0
-        shop_open = False
-        while elapsed < ZEUS_SHOP_OPEN_MAX_WAIT_SEC and self.state != "IDLE":
-            found = image_search.locate_smart(ZEUS_SHOP_OPEN_CHECK_IMG, ZEUS_SHOP_OPEN_CHECK_REGION,
-                                               tolerance=tol, transwhite_tolerance=tw_tol)
-            if found:
-                shop_open = True
-                break
-            self._sleep_interruptible(ZEUS_SHOP_OPEN_POLL_SEC)
-            elapsed += ZEUS_SHOP_OPEN_POLL_SEC
-
-        if self.state == "IDLE":
-            return
-
-        if not shop_open:
-            msg = (f"잡화상점이 {ZEUS_SHOP_OPEN_MAX_WAIT_SEC:.0f}초 동안 열리지 않았습니다. "
-                   f"매크로를 정지합니다.")
-            self.log(f"- [경고] {msg}")
-            self.notify_event("stuck", msg, once=False)
-            self.root.after(0, self.on_stop)
-            return
-
-        self.log("- 잡화상점 열림 확인됨 - 물약구매 클릭 시작")
-        for x, y in ZEUS_POTION_CLICKS:
-            self._click_point_jittered(x, y)
-            self.log(f"  ({x},{y}) 클릭 완료")
-        self._double_click_point_jittered(*ZEUS_POTION_DOUBLE_CLICK)
-        self.log(f"  {ZEUS_POTION_DOUBLE_CLICK} 더블클릭 완료")
-        self._click_point_jittered(*ZEUS_POTION_LAST_CLICK)
-        self.log(f"  {ZEUS_POTION_LAST_CLICK} 클릭 완료")
-
-        self.log(f"- {ZEUS_POTION_VERIFY_WAIT_SEC:.0f}초 대기 후 구매 확인")
-        self._sleep_interruptible(ZEUS_POTION_VERIFY_WAIT_SEC)
-        if self.state == "IDLE":
-            return
-
-        verified = image_search.locate_smart(ZEUS_POTION_VERIFY_IMG, ZEUS_POTION_VERIFY_REGION,
-                                              tolerance=tol, transwhite_tolerance=tw_tol)
-        if verified:
-            self.log("- anfdiron 확인됨 - 물약구매 정상 완료")
-        else:
-            self.log("- ⚠ anfdiron을 못 찾았습니다 - 물약구매가 제대로 안 됐을 수 있습니다 "
-                     "(일단 정상 흐름으로 계속 진행합니다)")
-        self.log("- 물약구매 로직 종료")
 
     def _click_point_jittered(self, x, y, jitter_min=CLICK_JITTER_MIN, jitter_max=CLICK_JITTER_MAX):
         """지정한 좌표에서 x, y를 각각 무작위로 살짝 흔들어서 클릭합니다."""
@@ -1588,28 +741,7 @@ class ZeusController(TelegramNotifierMixin):
             time.sleep(t)
             remaining -= t
 
-    def _handle_fpdlswj_sequence(self, box):
-        """fpdlswj.png 발견 시 정해진 순서를 한 번에 수행합니다 (이 전체를 하나의 '행동'으로
-        취급 - 도중에 다른 이미지 판단 없이 순서대로 실행됩니다):
-          1) fpdlswj.png 위치 더블클릭
-          2) (1065,735) 더블클릭
-          3) (740,500) 더블클릭
-          4) 10초 대기
-        매 클릭 뒤에는 (더블클릭 자체가 끝난 뒤에) 마우스를 게임창 밖으로 치웁니다."""
-        self.log("- fpdlswj 발견 -> 연속 동작 시작")
 
-        self._double_click_box_jittered(box)
-        self.log("  1) 이미지 위치 더블클릭 완료")
-
-        self._double_click_point_jittered(*ZEUS_FPDLSWJ_STEP2)
-        self.log(f"  2) {ZEUS_FPDLSWJ_STEP2} 더블클릭 완료")
-
-        self._double_click_point_jittered(*ZEUS_FPDLSWJ_STEP3)
-        self.log(f"  3) {ZEUS_FPDLSWJ_STEP3} 더블클릭 완료")
-
-        self.log(f"  4) {ZEUS_FPDLSWJ_WAIT_SEC:.0f}초 대기")
-        self._sleep_interruptible(ZEUS_FPDLSWJ_WAIT_SEC)
-        self.log("- fpdlswj 연속 동작 종료")
 
     # ------------------------------------------------------
     # 종료 정리
