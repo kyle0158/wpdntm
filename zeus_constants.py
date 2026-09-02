@@ -308,7 +308,7 @@ ZEUS_SUBQUEST_CHECK_IMG = 'tjqm.png'
 ZEUS_SUBQUEST_CHECK_REGION_NORMAL = (1183, 180, 1200, 243)
 ZEUS_SUBQUEST_CHECK_REGION_RAID = (1183, 243, 1201, 301)
 ZEUS_SUBQUEST_CLICK_NORMAL = (945, 215)
-ZEUS_SUBQUEST_CLICK_RAID = (945, 245)
+ZEUS_SUBQUEST_CLICK_RAID = (945, 275)
 
 # [참고용 - 더 이상 서브퀘스트 영역 선택에는 안 씀] fpdlem.png 인식이 불안정해서 위
 # 로직을 fpdlem 의존 없이(NORMAL/RAID 직접 탐색으로) 바꿨습니다. 다른 용도로 필요해질
