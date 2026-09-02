@@ -60,7 +60,7 @@ click_at(x, y)가 먼저 win32api.SetCursorPos로 화면 절대좌표로 커서�
      fpdlswj/wkehdrnao(자동구매)/tmzlfqnr(스킬북)/anfdir0ro(물약구매)/
      angksdmlxkq5cmd(무한의탑) 순으로 확인,
      있으면 즉시 처리
-  1.5) 서브퀘스트(tjqmznptmxm/tjqm, fpdlem 여부로 영역만 NORMAL/RAID 전환)
+  1.5) 서브퀘스트(tjqmznptmxm/tjqm, NORMAL/RAID 두 영역 직접 순서대로 탐색)
   2) gkdl/dpvlrwlsgod 있으면 대기
   3) 다 없으면 미인식 타이머 -> n초 넘으면 창끄기 -> rhkfgh 확인 -> 보정클릭+드래그,
      연속 [정체판정]회 넘으면 텔레그램+정지

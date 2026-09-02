@@ -40,7 +40,6 @@ from zeus_constants import (
     ZEUS_AUTOBUY_WAIT_IMG, ZEUS_AUTOBUY_WAIT_REGION, ZEUS_AUTOBUY_REPEAT_CLICK,
     ZEUS_AUTOBUY_REPEAT_DELAY_SEC, ZEUS_AUTOBUY_REPEAT_MAX,
     ZEUS_SKILLBOOK_IMG, ZEUS_SKILLBOOK_REGION, ZEUS_SKILLBOOK_CLICKS,
-    ZEUS_RAID_GATE_IMG, ZEUS_RAID_GATE_REGION,
     ZEUS_TOWER_TRIGGER_IMG, ZEUS_TOWER_TRIGGER_REGION,
     ZEUS_TOWER_STEP1, ZEUS_TOWER_STEP2,
     ZEUS_TOWER_SCREEN_IMG, ZEUS_TOWER_SCREEN_REGION,
@@ -117,9 +116,9 @@ class MacroLogicMixin:
              anfdir0ro.png(물약구매) / angksdmlxkq5cmd.png(무한의탑) - 있으면 즉시
              클릭(연속 동작 이미지는 시퀀스 수행)
              (gkdl.png/dpvlrwlsgod.png 여부와 무관)
-          1.5) 위가 다 없으면 fpdlem.png(레이드) 확인 - 있으면 서브퀘스트 생략. 없으면
-               서브퀘스트(tjqmznptmxm.png) 확인. 있으면 이번 턴은 서브퀘스트만 처리하고
-               메인퀘스트(2, 3)는 아예 안 봅니다.
+          1.5) 위가 다 없으면 서브퀘스트(tjqmznptmxm.png)를 NORMAL/RAID 두 영역에서
+               직접 순서대로 확인합니다(어느 쪽이든 걸리면 그 영역 세트를 씁니다).
+               있으면 이번 턴은 서브퀘스트만 처리하고 메인퀘스트(2, 3)는 아예 안 봅니다.
           2) 서브퀘스트도 없는데 gkdl.png 또는 dpvlrwlsgod.png가 있으면 - 대기 (OR 조건)
           3) 위가 다 없고 gkdl.png, dpvlrwlsgod.png도 둘 다 없으면(AND 조건) -
              미인식 지속시간을 재서, n초 넘으면 [창끄기] -> rhkfgh 확인 -> (900,150) 보정
@@ -249,20 +248,27 @@ class MacroLogicMixin:
             self._mark_activity()
             return
 
-        # [레이드 게이트] fpdlem.png(레이드) 여부에 따라 서브퀘스트(tjqm/tjqmznptmxm)를
-        # 검색할 영역만 바꿉니다 (로직 자체는 그대로 - 생략하지 않습니다). 레이드 중엔
-        # 화면 배치가 달라져서 같은 이미지가 다른 위치에 나타나기 때문입니다.
-        raid_active = image_search.locate_transwhite(ZEUS_RAID_GATE_IMG, ZEUS_RAID_GATE_REGION,
-                                                       tolerance=tw_tol)
-        gate_region = ZEUS_SUBQUEST_GATE_REGION_RAID if raid_active else ZEUS_SUBQUEST_GATE_REGION_NORMAL
-        check_region = ZEUS_SUBQUEST_CHECK_REGION_RAID if raid_active else ZEUS_SUBQUEST_CHECK_REGION_NORMAL
-        subquest_click = ZEUS_SUBQUEST_CLICK_RAID if raid_active else ZEUS_SUBQUEST_CLICK_NORMAL
+        # [서브퀘스트 - 영역 직접 탐색] 예전엔 fpdlem.png 인식 여부로 어느 영역을 볼지
+        # '미리' 정했는데, fpdlem.png 인식이 프레임마다 흔들려서(오탐/미탐) 실제로는
+        # 계속 레이드 중인데도 엉뚱하게 NORMAL 영역을 봐서 서브퀘스트를 놓치고
+        # 메인퀘스트로 새버리는 문제가 있었습니다. 그래서 이제 fpdlem.png를 거치지
+        # 않고, tjqmznptmxm.png 자체를 NORMAL -> RAID 순서로 직접 찾아서 어느 쪽이든
+        # 걸리는 영역을 그대로 씁니다 (중간 신호에 기대지 않으니 훨씬 안정적입니다).
+        gate_box = image_search.locate_smart(ZEUS_SUBQUEST_GATE_IMG, ZEUS_SUBQUEST_GATE_REGION_NORMAL,
+                                              tolerance=tol, transwhite_tolerance=tw_tol)
+        if gate_box:
+            check_region = ZEUS_SUBQUEST_CHECK_REGION_NORMAL
+            subquest_click = ZEUS_SUBQUEST_CLICK_NORMAL
+        else:
+            gate_box = image_search.locate_smart(ZEUS_SUBQUEST_GATE_IMG, ZEUS_SUBQUEST_GATE_REGION_RAID,
+                                                  tolerance=tol, transwhite_tolerance=tw_tol)
+            check_region = ZEUS_SUBQUEST_CHECK_REGION_RAID
+            subquest_click = ZEUS_SUBQUEST_CLICK_RAID
 
         # [서브퀘스트] 메인퀘스트(gkdl.png) 쪽보다 먼저 확인합니다. tjqmznptmxm.png가
         # 보이면 서브퀘스트가 진행 중이라는 뜻이라, 이번 턴은 서브퀘스트만 처리하고
         # 메인퀘스트 쪽(gkdl.png 등)은 아예 확인하지 않습니다.
-        if image_search.locate_smart(ZEUS_SUBQUEST_GATE_IMG, gate_region,
-                                      tolerance=tol, transwhite_tolerance=tw_tol):
+        if gate_box:
             if image_search.locate_smart(ZEUS_SUBQUEST_CHECK_IMG, check_region,
                                           tolerance=tol, transwhite_tolerance=tw_tol):
                 self.log("- tjqm 발견 - 서브퀘스트 대기")

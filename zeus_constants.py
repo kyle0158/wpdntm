@@ -294,10 +294,12 @@ DEFAULT_STUCK_REPEAT_THRESHOLD = 3
 # tjqmznptmxm.png 자체는 이제 클릭 대상이 아니라 '서브퀘스트가 떠 있는지' 확인하는
 # 용도로만 씁니다.
 #
-# [fpdlem.png(레이드) 여부에 따라 영역과 클릭좌표가 바뀝니다] 레이드 중엔 화면 배치가
-# 달라져서 tjqmznptmxm.png/tjqm.png가 다른 위치에 나타나고, 보정 클릭 좌표도 달라집니다.
-# 로직 자체는 그대로이고, 검색 영역/클릭 좌표만 fpdlem.png가 보이는지에 따라 NORMAL/RAID
-# 둘 중 하나를 씁니다.
+# [NORMAL/RAID 두 영역을 직접 순서대로 확인] 레이드 중엔 화면 배치가 달라져서
+# tjqmznptmxm.png/tjqm.png가 다른 위치에 나타나고, 보정 클릭 좌표도 달라집니다.
+# 예전엔 fpdlem.png 인식 여부로 어느 영역을 볼지 '미리' 정했는데, fpdlem.png 인식이
+# 프레임마다 흔들려서(오탐/미탐) 실제로는 레이드 중인데도 NORMAL 영역만 보고 서브퀘스트를
+# 놓치는 문제가 있었습니다. 그래서 지금은 fpdlem.png를 거치지 않고, tjqmznptmxm.png
+# 자체를 NORMAL -> RAID 순서로 직접 찾아서 걸리는 쪽 영역/좌표를 그대로 씁니다.
 # ==========================================================
 ZEUS_SUBQUEST_GATE_IMG = 'tjqmznptmxm.png'
 ZEUS_SUBQUEST_GATE_REGION_NORMAL = (821, 185, 860, 221)
@@ -308,8 +310,9 @@ ZEUS_SUBQUEST_CHECK_REGION_RAID = (1183, 243, 1201, 301)
 ZEUS_SUBQUEST_CLICK_NORMAL = (945, 215)
 ZEUS_SUBQUEST_CLICK_RAID = (945, 245)
 
-# fpdlem.png(레이드, transwhite) - 위 [서브퀘스트]에서 어떤 영역(NORMAL/RAID)을 쓸지
-# 결정하는 게이트입니다. 레이드 이미지 자체는 클릭 대상이 아닙니다.
+# [참고용 - 더 이상 서브퀘스트 영역 선택에는 안 씀] fpdlem.png 인식이 불안정해서 위
+# 로직을 fpdlem 의존 없이(NORMAL/RAID 직접 탐색으로) 바꿨습니다. 다른 용도로 필요해질
+# 수 있어 상수는 남겨뒀습니다.
 ZEUS_RAID_GATE_IMG = 'fpdlem.png'
 ZEUS_RAID_GATE_REGION = (914, 187, 1005, 242)
 
