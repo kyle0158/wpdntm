@@ -2,18 +2,23 @@
 [제우스 매크로]
 화면 구성:
   [상단]  아두이노 연결 상태(좌, 클릭하면 재연결) + 마우스 좌표(우, 화면 절대좌표, 100ms 갱신)
+  [포트]  아두이노 포트 직접 입력 (자동인식 실패 시)
   [상태]  정지됨 / 동작 중 / 일시정지됨
-  [설정]  미인식 대기 n초 / 오차범위(일반, transwhite) - 아래 설명 참고
+  [설정]  미인식 대기 n초 / 오차범위(일반, transwhite) / 정체판정 반복횟수 - 아래 설명 참고
   [버튼]  시작 / 일시정지 / 정지
-  [도구]  이미지 테스터 열기 / 게임창 정렬 (region_image_tester.py 재사용)
+  [도구]  이미지 테스터 열기 / 게임창 정렬 / 설정 저장 / 드래그 테스트
   [로그]  진행 상황
 
 이 GUI 창 자체는 항상 위에 떠 있고(-topmost), 켜지면 화면 좌표 (1620, 0)에 자동으로
 위치합니다. 게임창을 (0,0)에 1280x800으로 맞춰두면 딱 옆에 붙습니다.
 
-[게임창 정렬 버튼] 제목에 "제우스: 오만의 신"이 포함된 창을 찾아서 (0,0)으로 옮기고
+[게임창 정렬] 제목에 "제우스: 오만의 신"이 포함된 창을 찾아서 (0,0)으로 옮기고
 1280x800 크기로 바꿉니다. 창을 못 찾으면(게임이 안 켜져 있거나 제목이 다르면) 로그에
-이유가 남습니다.
+이유가 남습니다. 프로그램을 켜면 이 정렬을 1회 자동으로(필수로) 실행합니다 - 게임을
+먼저 켜둔 상태에서 이 매크로를 실행해야 정상적으로 맞춰집니다.
+
+[드래그 테스트 버튼] 게임창 정렬을 1회 실행한 뒤, 미인식 시 쓰는 드래그
+((453,346) -> (530,466))를 1회 실행해봅니다. 좌표/속도가 맞는지 확인하는 용도입니다.
 
 [새 이미지 추가하는 방법 - 여기가 핵심입니다]
   - "찾으면 그냥 클릭"만 하면 되는 이미지 -> SIMPLE_CLICK_IMAGES 리스트에 한 줄만 추가
@@ -50,6 +55,9 @@
     - tjqmznptmxm.png (게이트) - (821,185,860,221)   - 클릭 안 함, 서브퀘스트 존재 여부만 확인
     - tjqm.png (체크)          - (1183,180,1200,243) - 보이면 대기, n초 안 보이면 (945,215) 클릭
 
+  레이드 게이트 (서브퀘스트보다 먼저 확인, 아래 [레이드 게이트] 참고):
+    - fpdlem.png (transwhite) - (914,187,1005,242) - 클릭 안 함, 있으면 서브퀘스트 로직 생략
+
   대기(클릭 안 함):
     - gkdl.png         - (1176,120,1199,186)
     - dpvlrwlsgod.png  - (1176,120,1199,186, gkdl.png와 동일 영역)
@@ -75,10 +83,20 @@
 (단, 두 타이머는 서로 별개로 셉니다 - 서브퀘스트 대기 중이라고 메인퀘스트 타이머가 같이
 줄어들거나 하지 않습니다).
 
+[레이드 게이트] fpdlem.png(transwhite)가 보이면 - 서브퀘스트(위 [서브퀘스트]) 로직
+전체를 이번 턴에 건너뛰고 바로 메인퀘스트(gkdl.png 등) 쪽으로 넘어갑니다. 레이드 중엔
+서브퀘스트 판단 자체가 의미가 없어서입니다. fpdlem.png 자체는 클릭 대상이 아닙니다.
+
 [보정 클릭 전 rhkfgh 확인] gkdl.png/dpvlrwlsgod.png 타임아웃으로 (900,150)을 보정
 클릭하기 '직전'에 rhkfgh.png를 한 번 더 확인합니다. rhkfgh.png가 떠 있는 상태에서
 보정 클릭을 하면 다른 화면으로 넘어가버리기 때문에, 떠 있으면 이번엔 클릭을 건너뛰고
 미인식 타이머를 리셋해서 대기시간을 늘립니다 (사라질 때까지 계속 미룸).
+
+[보정 클릭 + 드래그] rhkfgh 확인까지 통과하면 (900,150)을 클릭하고, 곧바로 화면 드래그
+((453,346) -> (530,466))도 1회 실행합니다 (막혔을 때 화면을 조금 움직여서 인식이 다시
+되게 하기 위함). 이 둘이 '정체판정' 카운트를 공유합니다 - 중간에 다른 이미지가 하나도
+안 감지된 채로 이 보정 클릭+드래그가 [정체판정] 횟수만큼 연속되면 텔레그램 알림을
+보내고 매크로를 정지합니다.
 
 [매크로 로직] (_zeus_tick, 1초마다 1회)
   1) SIMPLE_CLICK_IMAGES -> OFFSET_CLICK_IMAGES -> CONDITIONAL_CLICK_IMAGES ->
@@ -200,7 +218,7 @@ def find_arduino_port():
 
 
 WINDOW_WIDTH = 300
-WINDOW_HEIGHT = 545
+WINDOW_HEIGHT = 570
 WINDOW_X = 1620   # GUI 창이 켜질 때 위치할 화면 좌표 (좌상단 X)
 WINDOW_Y = 0       # GUI 창이 켜질 때 위치할 화면 좌표 (좌상단 Y)
 
@@ -335,6 +353,18 @@ ZEUS_SUBQUEST_GATE_REGION = (821, 185, 860, 221)
 ZEUS_SUBQUEST_CHECK_IMG = 'tjqm.png'
 ZEUS_SUBQUEST_CHECK_REGION = (1183, 180, 1200, 243)
 ZEUS_SUBQUEST_CLICK = (945, 215)
+
+# fpdlem.png(레이드, transwhite) - 있으면 서브퀘스트(tjqm.png/tjqmznptmxm.png) 관련
+# 로직을 이번 턴에 건너뛰고 바로 메인퀘스트(gkdl.png 등) 쪽으로 넘어갑니다. 레이드
+# 이미지 자체는 클릭 대상이 아니라 '서브퀘스트를 생략해야 하는지' 확인하는 게이트입니다.
+ZEUS_RAID_GATE_IMG = 'fpdlem.png'
+ZEUS_RAID_GATE_REGION = (914, 187, 1005, 242)
+
+# [미인식 시 드래그] 액션 이미지/서브퀘스트/메인퀘스트 아무것도 못 찾은 상태가 n초
+# 넘으면, (900,150) 보정 클릭에 이어 이 드래그도 1회 실행합니다. (막혔을 때 화면을
+# 조금 움직여서 인식이 다시 되게 하기 위함)
+ZEUS_NO_MATCH_DRAG_START = (453, 346)
+ZEUS_NO_MATCH_DRAG_END = (530, 466)
 
 # gkdl.png - 있으면 대기 (클릭 안 함). 액션 이미지들이 전부 없을 때만 확인합니다.
 ZEUS_WAIT_IMG = 'gkdl.png'
@@ -491,6 +521,10 @@ class ZeusController(TelegramNotifierMixin):
         self._update_mouse_position()
         self.init_telegram()  # 텔레그램 전송용 큐/워커 스레드 시작
 
+        # [필수 창정렬] 켜질 때 게임창 정렬을 1회 실행합니다. 게임이 아직 안 켜져
+        # 있으면 실패 로그만 남고, 이후 "🖥 창정렬" 버튼으로 수동으로 다시 하면 됩니다.
+        self.position_game_window()
+
         self.root.protocol("WM_DELETE_WINDOW", self._on_close)
         atexit.register(self.cleanup)
 
@@ -559,7 +593,7 @@ class ZeusController(TelegramNotifierMixin):
         tk.Label(frm_stuck, text="정체판정", font=("", 8)).pack(side="left")
         tk.Entry(frm_stuck, textvariable=self.stuck_threshold_var, width=5,
                  justify="center").pack(side="left", padx=4)
-        tk.Label(frm_stuck, text="회 (보정클릭 연속되면 텔레그램+정지)",
+        tk.Label(frm_stuck, text="회 (보정클릭+드래그 연속되면 텔레그램+정지)",
                  font=("", 7), fg="#666").pack(side="left")
 
         # 시작 / 일시정지 / 정지
@@ -584,6 +618,10 @@ class ZeusController(TelegramNotifierMixin):
                   bg="#eaf2f8").pack(side="left", fill="x", expand=True, padx=2)
         tk.Button(frm_tools, text="💾 저장", command=self.save_settings,
                   bg="#fef9e7").pack(side="left", fill="x", expand=True, padx=(2, 0))
+
+        # 드래그 테스트 (창정렬 1회 실행 후 드래그 1회 실행)
+        tk.Button(parent, text="🧪 드래그 테스트 (창정렬 후 드래그)", command=self.test_drag,
+                  bg="#eafaf1").pack(fill="x", padx=5, pady=(0, 5))
 
         # 로그
         log_frame = tk.LabelFrame(parent, text="로그")
@@ -638,7 +676,7 @@ class ZeusController(TelegramNotifierMixin):
         tk.Label(row6, text="회 (같은 알림을 몇 번 보낼지)", font=("", 7),
                  fg="#666").pack(side="left")
         tk.Label(frm_event,
-                 text="'정체판정' 회수(매크로 탭)만큼 보정클릭이 연속되면 여기서 보낸 뒤 정지합니다.",
+                 text="'정체판정' 회수(매크로 탭)만큼 보정클릭+드래그가 연속되면 여기서 보낸 뒤 정지합니다.",
                  font=("", 7), fg="#666", wraplength=WINDOW_WIDTH - 20,
                  justify="left").pack(fill="x", padx=5, pady=(0, 6))
 
@@ -692,6 +730,8 @@ class ZeusController(TelegramNotifierMixin):
     # 게임창 정렬 (제목에 GAME_TITLE_PART가 포함된 창을 0,0으로 옮기고 1600x800으로 변경)
     # ------------------------------------------------------
     def position_game_window(self):
+        """제목에 GAME_TITLE_PART가 포함된 창을 찾아 (0,0)으로 옮기고 크기를 맞춥니다.
+        성공하면 True, 창을 못 찾았거나 이동/크기변경에 실패하면 False를 돌려줍니다."""
         hwnds = []
         win32gui.EnumWindows(
             lambda h, l: l.append(h) if (win32gui.IsWindowVisible(h)
@@ -699,7 +739,7 @@ class ZeusController(TelegramNotifierMixin):
             hwnds)
         if not hwnds:
             self.log(f"- 게임 창을 못 찾았습니다 (제목에 '{GAME_TITLE_PART}' 포함된 창이 없음)")
-            return
+            return False
         hwnd = hwnds[0]
         try:
             win32gui.ShowWindow(hwnd, win32con.SW_RESTORE)  # 최대화/최소화 상태면 먼저 일반 창으로
@@ -707,6 +747,7 @@ class ZeusController(TelegramNotifierMixin):
                                    GAME_WINDOW_W, GAME_WINDOW_H, win32con.SWP_SHOWWINDOW)
             self.log(f"- 게임창을 ({GAME_WINDOW_X},{GAME_WINDOW_Y})로 이동, "
                      f"{GAME_WINDOW_W}x{GAME_WINDOW_H}로 크기 변경했습니다")
+            return True
         except Exception as e:
             self.log(f"- 게임창 이동/크기 변경 실패: {e}")
             # [자주 나오는 원인] winerror 5 = 액세스 거부. 대상 창(게임)이 이 프로그램보다
@@ -723,6 +764,18 @@ class ZeusController(TelegramNotifierMixin):
                 self.log("  -> [원인 추정] 권한 차이(winerror 5, 액세스 거부)입니다. 게임이 "
                          "관리자 권한으로 켜져 있으면 이 매크로도 관리자 권한으로 실행해야 "
                          "창을 옮길 수 있습니다 (.pyw 파일을 마우스 우클릭 -> 관리자 권한으로 실행)")
+            return False
+
+    def test_drag(self):
+        """드래그 테스트 버튼: 게임창 정렬을 1회 실행한 뒤, 미인식 시 쓰는 드래그
+        (ZEUS_NO_MATCH_DRAG_START -> END)를 1회 실행해서 좌표/느낌을 확인해볼 수 있습니다."""
+        self.log("- 드래그 테스트 시작")
+        aligned = self.position_game_window()
+        if not aligned:
+            self.log("  -> 창정렬에 실패했지만, 좌표 확인을 위해 드래그는 그대로 진행합니다")
+        self.log(f"- 드래그 {ZEUS_NO_MATCH_DRAG_START} -> {ZEUS_NO_MATCH_DRAG_END}")
+        self.drag_from_to(ZEUS_NO_MATCH_DRAG_START, ZEUS_NO_MATCH_DRAG_END)
+        self.log("- 드래그 테스트 종료")
 
     # ------------------------------------------------------
     # 아두이노 연결
@@ -867,6 +920,34 @@ class ZeusController(TelegramNotifierMixin):
             win32api.SetCursorPos((MOUSE_PARK_X, MOUSE_PARK_Y))
         except Exception as e:
             self.log(f"- [진단] 마우스 치우기 실패: {e}")
+
+    def drag_from_to(self, start, end, steps=12, step_delay=0.02, hold_settle=0.05, park_after=True):
+        """start 좌표에서 마우스를 누른 채로 end 좌표까지 서서히 이동시켜 드래그합니다
+        (화면/지도 이동 등에 씁니다). steps/step_delay로 부드러움과 속도를 조절할 수
+        있습니다."""
+        sx, sy = start
+        ex, ey = end
+        try:
+            win32api.SetCursorPos((int(sx), int(sy)))
+        except Exception as e:
+            self.log(f"- [진단] 드래그 시작 위치 이동 실패: {e}")
+            return
+        time.sleep(0.05)
+        self.safe_write("M1P")
+        time.sleep(hold_settle)  # 누른 상태가 실제로 적용될 시간을 살짝 줍니다.
+        for i in range(1, steps + 1):
+            t = i / steps
+            cx = sx + (ex - sx) * t
+            cy = sy + (ey - sy) * t
+            try:
+                win32api.SetCursorPos((int(round(cx)), int(round(cy))))
+            except Exception:
+                pass
+            time.sleep(step_delay)
+        self.safe_write("M1R")
+        if park_after:
+            time.sleep(0.08)  # click_at과 같은 이유로, 릴리즈가 실제로 처리될 시간을 준 뒤에 치웁니다.
+            self._park_mouse()
 
     # ------------------------------------------------------
     # 시작 / 일시정지 / 정지
@@ -1021,12 +1102,14 @@ class ZeusController(TelegramNotifierMixin):
           1) SIMPLE_CLICK_IMAGES / OFFSET_CLICK_IMAGES / CONDITIONAL_CLICK_IMAGES
              (각 리스트 순서대로) / fpdlswj.png / wkehdrnao.png / tmzlfqnr.png - 있으면
              즉시 클릭(연속 동작 이미지는 시퀀스 수행) (gkdl.png/dpvlrwlsgod.png 여부와 무관)
-          1.5) 위가 다 없으면 서브퀘스트(tjqmznptmxm.png) 확인. 있으면 이번 턴은
-               서브퀘스트만 처리하고 메인퀘스트(2, 3)는 아예 안 봅니다.
+          1.5) 위가 다 없으면 fpdlem.png(레이드) 확인 - 있으면 서브퀘스트 생략. 없으면
+               서브퀘스트(tjqmznptmxm.png) 확인. 있으면 이번 턴은 서브퀘스트만 처리하고
+               메인퀘스트(2, 3)는 아예 안 봅니다.
           2) 서브퀘스트도 없는데 gkdl.png 또는 dpvlrwlsgod.png가 있으면 - 대기 (OR 조건)
           3) 위가 다 없고 gkdl.png, dpvlrwlsgod.png도 둘 다 없으면(AND 조건) -
-             미인식 지속시간을 재서, n초 넘으면 [창끄기] -> rhkfgh 확인 -> (900,150) 보정 클릭
-             순서로 처리하고, 보정 클릭이 연속 [정체판정]회 이상 나오면 텔레그램 알림 후 정지
+             미인식 지속시간을 재서, n초 넘으면 [창끄기] -> rhkfgh 확인 -> (900,150) 보정
+             클릭 -> 화면 드래그 순서로 처리하고, 이 보정 클릭+드래그가 연속 [정체판정]회
+             이상 나오면 텔레그램 알림 후 정지
         """
         now = time.time()
         tol = self.get_tolerance()
@@ -1105,35 +1188,43 @@ class ZeusController(TelegramNotifierMixin):
             self._mark_activity()
             return
 
-        # [서브퀘스트] 메인퀘스트(gkdl.png) 쪽보다 먼저 확인합니다. tjqmznptmxm.png가 보이면
-        # 서브퀘스트가 진행 중이라는 뜻이라, 이번 턴은 서브퀘스트만 처리하고 메인퀘스트
-        # 쪽(gkdl.png 등)은 아예 확인하지 않습니다.
-        if image_search.locate_smart(ZEUS_SUBQUEST_GATE_IMG, ZEUS_SUBQUEST_GATE_REGION,
-                                      tolerance=tol, transwhite_tolerance=tw_tol):
-            if image_search.locate_smart(ZEUS_SUBQUEST_CHECK_IMG, ZEUS_SUBQUEST_CHECK_REGION,
+        # [레이드 게이트] fpdlem.png(레이드)가 보이면 서브퀘스트(tjqm/tjqmznptmxm) 관련
+        # 로직 전체를 이번 턴에 건너뜁니다 - 레이드 중엔 서브퀘스트 판단이 의미가 없어서입니다.
+        raid_active = image_search.locate_transwhite(ZEUS_RAID_GATE_IMG, ZEUS_RAID_GATE_REGION,
+                                                       tolerance=tw_tol)
+        if raid_active:
+            self._subquest_wait_start = None  # 나중에 다시 켤 때 오래된 타이머가 안 남게 정리
+        else:
+            # [서브퀘스트] 메인퀘스트(gkdl.png) 쪽보다 먼저 확인합니다. tjqmznptmxm.png가
+            # 보이면 서브퀘스트가 진행 중이라는 뜻이라, 이번 턴은 서브퀘스트만 처리하고
+            # 메인퀘스트 쪽(gkdl.png 등)은 아예 확인하지 않습니다.
+            if image_search.locate_smart(ZEUS_SUBQUEST_GATE_IMG, ZEUS_SUBQUEST_GATE_REGION,
                                           tolerance=tol, transwhite_tolerance=tw_tol):
-                self.log("- tjqm 발견 - 서브퀘스트 대기")
-                self._subquest_wait_start = None  # 다음에 또 안 보이면 처음부터 다시 잽니다.
-                self._mark_activity()
+                if image_search.locate_smart(ZEUS_SUBQUEST_CHECK_IMG, ZEUS_SUBQUEST_CHECK_REGION,
+                                              tolerance=tol, transwhite_tolerance=tw_tol):
+                    self.log("- tjqm 발견 - 서브퀘스트 대기")
+                    self._subquest_wait_start = None  # 다음에 또 안 보이면 처음부터 다시 잽니다.
+                    self._mark_activity()
+                    return
+
+                # tjqm.png가 안 보입니다 - 언제부터 안 보였는지 재서 n초 넘으면 보정 클릭.
+                if self._subquest_wait_start is None:
+                    self._subquest_wait_start = now
+                timeout = self.get_no_image_timeout_sec()  # gkdl.png와 같은 입력칸(n초)을 공유합니다.
+                elapsed_sub = now - self._subquest_wait_start
+                if elapsed_sub >= timeout:
+                    self.log(f"- tjqm 미인식 {timeout:.1f}초 -> 서브퀘스트 보정 클릭 "
+                             f"{ZEUS_SUBQUEST_CLICK}")
+                    self._click_point_jittered(*ZEUS_SUBQUEST_CLICK)
+                    self._subquest_wait_start = now  # 매 턴마다 계속 클릭하지 않도록 리셋
+                    self._mark_activity()
+                # 아직 n초가 안 지났으면 이번 턴은 그냥 대기 (메인퀘스트로 안 넘어감)
                 return
 
-            # tjqm.png가 안 보입니다 - 언제부터 안 보였는지 재서 n초 넘으면 보정 클릭.
-            if self._subquest_wait_start is None:
-                self._subquest_wait_start = now
-            timeout = self.get_no_image_timeout_sec()  # gkdl.png와 같은 입력칸(n초)을 공유합니다.
-            elapsed_sub = now - self._subquest_wait_start
-            if elapsed_sub >= timeout:
-                self.log(f"- tjqm 미인식 {timeout:.1f}초 -> 서브퀘스트 보정 클릭 "
-                         f"{ZEUS_SUBQUEST_CLICK}")
-                self._click_point_jittered(*ZEUS_SUBQUEST_CLICK)
-                self._subquest_wait_start = now  # 매 턴마다 계속 클릭하지 않도록 리셋
-                self._mark_activity()
-            # 아직 n초가 안 지났으면 이번 턴은 그냥 대기 (메인퀘스트로 안 넘어감)
-            return
+            # tjqmznptmxm.png 자체가 안 보이면 서브퀘스트가 없는 것이므로 타이머만 정리합니다.
+            self._subquest_wait_start = None
 
-        # tjqmznptmxm.png 자체가 안 보이면 서브퀘스트가 없는 것이므로 타이머만 정리하고
-        # 메인퀘스트(gkdl.png 등) 쪽으로 계속 진행합니다.
-        self._subquest_wait_start = None
+        # (raid_active였거나, 서브퀘스트가 없었으면) 메인퀘스트(gkdl.png 등) 쪽으로 진행합니다.
 
         # 2) gkdl.png 또는 dpvlrwlsgod.png - 액션 이미지가 전부 없을 때만 확인.
         #    둘 중 하나라도 있으면 대기 (클릭 안 함). 둘 다 없어야 3)의 미인식으로 취급합니다.
@@ -1169,14 +1260,18 @@ class ZeusController(TelegramNotifierMixin):
             self.log(f"- {timeout:.1f}초간 아무 이미지도 인식 안 됨 -> 보정 클릭 "
                      f"({FALLBACK_CLICK_X},{FALLBACK_CLICK_Y})")
             self._click_point_jittered(FALLBACK_CLICK_X, FALLBACK_CLICK_Y)
-            self._last_activity_time = time.time()  # 매 턴마다 계속 클릭하지 않도록 리셋
 
-            # [정체 감지] 이 보정 클릭이 '중간에 진전 없이' 연속으로 몇 번째인지 셉니다.
+            self.log(f"- 이어서 화면 드래그 {ZEUS_NO_MATCH_DRAG_START} -> {ZEUS_NO_MATCH_DRAG_END}")
+            self.drag_from_to(ZEUS_NO_MATCH_DRAG_START, ZEUS_NO_MATCH_DRAG_END)
+
+            self._last_activity_time = time.time()  # 매 턴마다 계속 반복하지 않도록 리셋
+
+            # [정체 감지] 이 보정 클릭+드래그가 '중간에 진전 없이' 연속으로 몇 번째인지 셉니다.
             # 다른 이미지가 하나라도 감지되면(_mark_activity) 이 카운트는 0으로 돌아갑니다.
             self._fallback_click_streak += 1
             threshold = self.get_stuck_repeat_threshold()
             if self._fallback_click_streak >= threshold:
-                msg = (f"제우스 매크로가 정체된 것 같습니다 (보정 클릭이 "
+                msg = (f"제우스 매크로가 정체된 것 같습니다 (보정 클릭+드래그가 "
                        f"{self._fallback_click_streak}회 연속 발생). 매크로를 정지합니다.")
                 self.log(f"- [경고] {msg}")
                 self.notify_event("stuck", msg, once=False)
