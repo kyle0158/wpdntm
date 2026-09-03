@@ -156,6 +156,9 @@ class ZeusController(MacroLogicMixin, TelegramNotifierMixin):
         self._fallback_click_streak = 0
         # [서브퀘스트용] tjqm.png가 안 보이기 시작한 시각. None이면 아직 안 재는 중.
         self._subquest_wait_start = None
+        # [레이드 상태 디바운스용] fpdlem.png가 마지막으로 인식된 시각. None이면 아직 한
+        # 번도 못 봄. 이 시각으로부터 유예시간 안에는 RAID 상태로 계속 취급합니다.
+        self._raid_last_seen_time = None
 
         # [상태] IDLE(정지) / RUNNING(동작중) / PAUSED(일시정지)
         self.state = "IDLE"
@@ -606,6 +609,7 @@ class ZeusController(MacroLogicMixin, TelegramNotifierMixin):
             self._last_activity_time = time.time()
             self._fallback_click_streak = 0
             self._subquest_wait_start = None
+            self._raid_last_seen_time = None
             self.log("- 시작")
             self._loop_thread = threading.Thread(target=self.run_loop, daemon=True)
             self._loop_thread.start()
@@ -614,6 +618,7 @@ class ZeusController(MacroLogicMixin, TelegramNotifierMixin):
             self._last_activity_time = time.time()  # 정지해있던 시간이 n초에 포함되지 않도록 리셋
             self._fallback_click_streak = 0
             self._subquest_wait_start = None
+            self._raid_last_seen_time = None
             self.log("- 재개")
         self._refresh_buttons()
 

@@ -51,6 +51,7 @@ from zeus_constants import (
     ZEUS_SUBQUEST_GATE_IMG, ZEUS_SUBQUEST_GATE_REGION_NORMAL, ZEUS_SUBQUEST_GATE_REGION_RAID,
     ZEUS_SUBQUEST_CHECK_IMG, ZEUS_SUBQUEST_CHECK_REGION_NORMAL, ZEUS_SUBQUEST_CHECK_REGION_RAID,
     ZEUS_SUBQUEST_CLICK_NORMAL, ZEUS_SUBQUEST_CLICK_RAID,
+    ZEUS_RAID_GATE_IMG, ZEUS_RAID_GATE_REGION, ZEUS_RAID_MODE_GRACE_SEC,
     ZEUS_WAIT_IMG, ZEUS_WAIT_REGION, ZEUS_WAIT2_IMG, ZEUS_WAIT2_REGION,
     ZEUS_RHKFGH_IMG, ZEUS_RHKFGH_REGION,
     ZEUS_CHANGKKEUGI1_IMG, ZEUS_CHANGKKEUGI1_REGION,
@@ -248,27 +249,31 @@ class MacroLogicMixin:
             self._mark_activity()
             return
 
-        # [서브퀘스트 - 영역 직접 탐색] 예전엔 fpdlem.png 인식 여부로 어느 영역을 볼지
-        # '미리' 정했는데, fpdlem.png 인식이 프레임마다 흔들려서(오탐/미탐) 실제로는
-        # 계속 레이드 중인데도 엉뚱하게 NORMAL 영역을 봐서 서브퀘스트를 놓치고
-        # 메인퀘스트로 새버리는 문제가 있었습니다. 그래서 이제 fpdlem.png를 거치지
-        # 않고, tjqmznptmxm.png 자체를 NORMAL -> RAID 순서로 직접 찾아서 어느 쪽이든
-        # 걸리는 영역을 그대로 씁니다 (중간 신호에 기대지 않으니 훨씬 안정적입니다).
-        gate_box = image_search.locate_smart(ZEUS_SUBQUEST_GATE_IMG, ZEUS_SUBQUEST_GATE_REGION_NORMAL,
-                                              tolerance=tol, transwhite_tolerance=tw_tol)
-        if gate_box:
-            check_region = ZEUS_SUBQUEST_CHECK_REGION_NORMAL
-            subquest_click = ZEUS_SUBQUEST_CLICK_NORMAL
-        else:
-            gate_box = image_search.locate_smart(ZEUS_SUBQUEST_GATE_IMG, ZEUS_SUBQUEST_GATE_REGION_RAID,
-                                                  tolerance=tol, transwhite_tolerance=tw_tol)
+        # [레이드 상태 판정 - 디바운스] fpdlem.png가 이번 턴에 인식되면 '마지막으로 본
+        # 시각'을 갱신합니다. 그 시각으로부터 유예시간(ZEUS_RAID_MODE_GRACE_SEC) 안에는
+        # 이번 턴에 fpdlem이 안 잡혀도 계속 RAID로 취급합니다 - fpdlem 인식이 프레임마다
+        # 흔들려도(오탐/미탐) 한두 번 놓치는 걸로 NORMAL로 잘못 떨어지지 않게 하기 위함입니다.
+        fpdlem_found = image_search.locate_transwhite(ZEUS_RAID_GATE_IMG, ZEUS_RAID_GATE_REGION,
+                                                        tolerance=tw_tol)
+        if fpdlem_found:
+            self._raid_last_seen_time = now
+        raid_active = (self._raid_last_seen_time is not None
+                        and (now - self._raid_last_seen_time) <= ZEUS_RAID_MODE_GRACE_SEC)
+
+        if raid_active:
+            gate_region = ZEUS_SUBQUEST_GATE_REGION_RAID
             check_region = ZEUS_SUBQUEST_CHECK_REGION_RAID
             subquest_click = ZEUS_SUBQUEST_CLICK_RAID
+        else:
+            gate_region = ZEUS_SUBQUEST_GATE_REGION_NORMAL
+            check_region = ZEUS_SUBQUEST_CHECK_REGION_NORMAL
+            subquest_click = ZEUS_SUBQUEST_CLICK_NORMAL
 
         # [서브퀘스트] 메인퀘스트(gkdl.png) 쪽보다 먼저 확인합니다. tjqmznptmxm.png가
         # 보이면 서브퀘스트가 진행 중이라는 뜻이라, 이번 턴은 서브퀘스트만 처리하고
         # 메인퀘스트 쪽(gkdl.png 등)은 아예 확인하지 않습니다.
-        if gate_box:
+        if image_search.locate_smart(ZEUS_SUBQUEST_GATE_IMG, gate_region,
+                                      tolerance=tol, transwhite_tolerance=tw_tol):
             if image_search.locate_smart(ZEUS_SUBQUEST_CHECK_IMG, check_region,
                                           tolerance=tol, transwhite_tolerance=tw_tol):
                 self.log("- tjqm 발견 - 서브퀘스트 대기")
