@@ -19,7 +19,8 @@ from zeus_constants import (
     SIMPLE_CLICK_IMAGES, OFFSET_CLICK_IMAGES, CONDITIONAL_CLICK_IMAGES,
     ZEUS_HP_IMG, ZEUS_HP_REGION,
     ZEUS_RETURN_CLICK1, ZEUS_RETURN_CLICK2, ZEUS_RETURN_REPEAT, ZEUS_RETURN_REPEAT_GAP_SEC,
-    ZEUS_HP_RECHECK_INTERVAL_SEC, ZEUS_HP_RECHECK_MAX_SEC,
+    ZEUS_HP_RETURN_CHECK_IMG, ZEUS_HP_RETURN_CHECK_REGION,
+    ZEUS_HP_RETURN_CHECK_WAIT_SEC, ZEUS_HP_RETURN_MAX_RETRIES,
     ZEUS_POTION_TRIGGER_IMG, ZEUS_POTION_TRIGGER_REGION, ZEUS_POTION_CONFIRM_WAIT_SEC,
     ZEUS_GROCERY_BUTTON_IMG, ZEUS_GROCERY_BUTTON_REGION,
     ZEUS_SHOP_OPEN_CHECK_IMG, ZEUS_SHOP_OPEN_CHECK_REGION,
@@ -420,31 +421,37 @@ class MacroLogicMixin:
                 time.sleep(ZEUS_RETURN_REPEAT_GAP_SEC)
 
     def _handle_hp_missing_sequence(self):
-        """hp.png가 안 보일 때: 귀환로직 -> 10초 대기 -> wkqghkqjxms.png(잡화버튼) 확인을
-        최대 30초까지 반복합니다. wkqghkqjxms.png가 보이면 귀환이 잘 된 것으로 판단하고
-        정상 흐름으로 복귀합니다. 그래도 안 보이면 텔레그램 알림 후 정지합니다."""
-        self.log("- hp 미확인 -> 귀환로직 시작")
-        self._perform_return_logic()
-
+        """hp.png가 안 보일 때:
+          1) 귀환로직 수행
+          2) 20초 대기 후 wkqghkqjxms.png 확인. 보이면 귀환 성공, 정상 흐름으로 복귀.
+          3) 안 보이면 1)~2)를 다시 수행(재시도) - 최대 ZEUS_HP_RETURN_MAX_RETRIES회까지
+          4) 그래도 다 실패하면 텔레그램 알림 후 정지
+        """
         tol = self.get_tolerance()
         tw_tol = self.get_transwhite_tolerance()
-        elapsed = 0.0
-        while elapsed < ZEUS_HP_RECHECK_MAX_SEC and self.state != "IDLE":
-            self._sleep_interruptible(ZEUS_HP_RECHECK_INTERVAL_SEC)
-            elapsed += ZEUS_HP_RECHECK_INTERVAL_SEC
+
+        for attempt in range(1, ZEUS_HP_RETURN_MAX_RETRIES + 1):
+            self.log(f"- hp 미확인 -> 귀환로직 시작 ({attempt}/{ZEUS_HP_RETURN_MAX_RETRIES}회차)")
+            self._perform_return_logic()
+
+            self._sleep_interruptible(ZEUS_HP_RETURN_CHECK_WAIT_SEC)
             if self.state == "IDLE":
                 return
-            found = image_search.locate_smart(ZEUS_GROCERY_BUTTON_IMG, ZEUS_GROCERY_BUTTON_REGION,
+
+            found = image_search.locate_smart(ZEUS_HP_RETURN_CHECK_IMG, ZEUS_HP_RETURN_CHECK_REGION,
                                                tolerance=tol, transwhite_tolerance=tw_tol)
             if found:
-                self.log(f"- wkqghkqjxms 확인됨 ({elapsed:.0f}초 경과) - 귀환 성공, 정상 흐름으로 복귀")
+                self.log(f"- wkqghkqjxms 확인됨 ({attempt}회차) - 귀환 성공, 정상 흐름으로 복귀")
                 self._mark_activity()
                 return
-            self.log(f"- wkqghkqjxms 여전히 안 보임 ({elapsed:.0f}초 경과)")
+
+            self.log(f"- wkqghkqjxms {ZEUS_HP_RETURN_CHECK_WAIT_SEC:.0f}초 동안 안 보임 "
+                     f"({attempt}회차 실패)")
 
         if self.state == "IDLE":
             return
-        msg = f"귀환 후 {ZEUS_HP_RECHECK_MAX_SEC:.0f}초 동안 wkqghkqjxms.png가 확인되지 않았습니다. 매크로를 정지합니다."
+        msg = (f"귀환로직을 {ZEUS_HP_RETURN_MAX_RETRIES}회 재시도해도 wkqghkqjxms.png가 "
+               f"확인되지 않았습니다. 매크로를 정지합니다.")
         self.log(f"- [경고] {msg}")
         self.notify_event("stuck", msg, once=False)
         self.root.after(0, self.on_stop)

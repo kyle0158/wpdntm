@@ -183,9 +183,9 @@ ZEUS_SKILLBOOK_CLICKS = [
 # 사냥중인데 hp.png가 안 보이면 귀환로직을 수행합니다. 귀환로직은 물약구매 로직
 # 시작할 때도 재사용합니다.
 #   1) (45,195) -> (682,515) 클릭 쌍을 2회 빠르게 반복
-#   2) 10초 대기 후 wkqghkqjxms.png(잡화버튼) 확인. 보이면 귀환 성공, 정상 흐름으로 복귀.
-#   3) 없으면 다시 10초 대기 후 재확인 - 최대 30초까지 반복
-#   4) 30초 안에 wkqghkqjxms.png가 안 보이면 텔레그램 알림 후 정지
+#   2) 20초 대기 후 wkqghkqjxms.png(잡화버튼) 확인. 보이면 귀환 성공, 정상 흐름으로 복귀.
+#   3) 안 보이면 1)~2)를 다시 수행(재시도) - 최대 5회까지
+#   4) 5회 다 실패하면 텔레그램 알림 후 정지
 # [가정] "2회 빠르게 반복"의 반복 사이 간격은 지정 안 해주셔서 0.2초로 짧게 잡았습니다.
 # ==========================================================
 ZEUS_HP_IMG = 'hp.png'
@@ -194,8 +194,10 @@ ZEUS_RETURN_CLICK1 = (45, 195)
 ZEUS_RETURN_CLICK2 = (682, 515)
 ZEUS_RETURN_REPEAT = 2
 ZEUS_RETURN_REPEAT_GAP_SEC = 0.2  # [가정] 반복 사이 간격
-ZEUS_HP_RECHECK_INTERVAL_SEC = 10.0
-ZEUS_HP_RECHECK_MAX_SEC = 30.0
+ZEUS_HP_RETURN_CHECK_IMG = 'wkqghkqjxms.png'
+ZEUS_HP_RETURN_CHECK_REGION = (1002, 595, 1236, 764)  # 잡화버튼과 같은 영역
+ZEUS_HP_RETURN_CHECK_WAIT_SEC = 20.0
+ZEUS_HP_RETURN_MAX_RETRIES = 5
 
 # ==========================================================
 # [물약구매 로직] anfdir0ro.png가 보이면 발동합니다:
@@ -309,7 +311,7 @@ ZEUS_SUBQUEST_CHECK_IMG = 'tjqm.png'
 ZEUS_SUBQUEST_CHECK_REGION_NORMAL = (1183, 180, 1200, 243)
 ZEUS_SUBQUEST_CHECK_REGION_RAID = (1183, 243, 1201, 301)
 ZEUS_SUBQUEST_CLICK_NORMAL = (945, 215)
-ZEUS_SUBQUEST_CLICK_RAID = (945, 265)
+ZEUS_SUBQUEST_CLICK_RAID = (945, 245)
 
 # fpdlem.png(레이드, transwhite) - 서브퀘스트에서 어느 영역(NORMAL/RAID)을 쓸지
 # 결정하는 게이트입니다. 레이드 이미지 자체는 클릭 대상이 아닙니다.
