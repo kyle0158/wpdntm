@@ -189,7 +189,7 @@ ZEUS_SKILLBOOK_CLICKS = [
 # [가정] "2회 빠르게 반복"의 반복 사이 간격은 지정 안 해주셔서 0.2초로 짧게 잡았습니다.
 # ==========================================================
 ZEUS_HP_IMG = 'hp.png'
-ZEUS_HP_REGION = (179, 59, 214, 83)
+ZEUS_HP_REGION = (87,63,191,78)
 ZEUS_RETURN_CLICK1 = (45, 195)
 ZEUS_RETURN_CLICK2 = (682, 515)
 ZEUS_RETURN_REPEAT = 2
