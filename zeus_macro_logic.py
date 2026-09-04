@@ -25,7 +25,7 @@ from zeus_constants import (
     ZEUS_POTION_TRIGGER_IMG, ZEUS_POTION_TRIGGER_REGION, ZEUS_POTION_CONFIRM_WAIT_SEC,
     ZEUS_GROCERY_BUTTON_IMG, ZEUS_GROCERY_BUTTON_REGION,
     ZEUS_SHOP_OPEN_CHECK_IMG, ZEUS_SHOP_OPEN_CHECK_REGION,
-    ZEUS_SHOP_OPEN_MAX_WAIT_SEC, ZEUS_SHOP_OPEN_POLL_SEC,
+    ZEUS_SHOP_OPEN_MAX_WAIT_SEC, ZEUS_SHOP_OPEN_POLL_SEC, ZEUS_POTION_SHOP_FAIL_MAX,
     ZEUS_POTION_CLICKS, ZEUS_POTION_DOUBLE_CLICK, ZEUS_POTION_LAST_CLICK,
     ZEUS_POTION_CLICK_DELAY_SEC, ZEUS_POTION_VERIFY_WAIT_SEC,
     ZEUS_POTION_VERIFY_IMG, ZEUS_POTION_VERIFY_REGION,
@@ -525,12 +525,26 @@ class MacroLogicMixin:
             return
 
         if not shop_open:
-            msg = (f"잡화상점이 {ZEUS_SHOP_OPEN_MAX_WAIT_SEC:.0f}초 동안 열리지 않았습니다. "
-                   f"매크로를 정지합니다.")
-            self.log(f"- [경고] {msg}")
-            self.notify_event("stuck", msg, once=False)
-            self.root.after(0, self.on_stop)
+            # [3회 누적까지는 넘어감] 튜토리얼 등으로 화면이 잠깐 전환되면서 anfdir0ro.png가
+            # 일시적으로만 보였다가 사라지는 경우가 있어서, 이 실패 하나만으로 바로
+            # 정지하지 않습니다. 실패할 때마다 세어두고, 이 시퀀스 자체가 (다른 이미지들
+            # 처리하는 턴을 사이에 두고) 총 ZEUS_POTION_SHOP_FAIL_MAX회 누적돼야 정지합니다.
+            # 한 번이라도 성공하면 이 카운트는 0으로 돌아갑니다.
+            self._potion_shop_fail_streak += 1
+            if self._potion_shop_fail_streak >= ZEUS_POTION_SHOP_FAIL_MAX:
+                msg = (f"잡화상점이 {ZEUS_SHOP_OPEN_MAX_WAIT_SEC:.0f}초 동안 열리지 않는 상황이 "
+                       f"{self._potion_shop_fail_streak}회 누적됐습니다. 매크로를 정지합니다.")
+                self.log(f"- [경고] {msg}")
+                self.notify_event("stuck", msg, once=False)
+                self.root.after(0, self.on_stop)
+            else:
+                self.log(f"- ⚠ 잡화상점이 {ZEUS_SHOP_OPEN_MAX_WAIT_SEC:.0f}초 동안 안 열림 "
+                         f"({self._potion_shop_fail_streak}/{ZEUS_POTION_SHOP_FAIL_MAX}회 누적, "
+                         f"아직 정지하지 않고 계속 진행합니다)")
             return
+
+        # [성공] 여기까지 왔다는 건 상점이 열렸다는 뜻이니 실패 누적 카운트를 리셋합니다.
+        self._potion_shop_fail_streak = 0
 
         self.log("- 잡화상점 열림 확인됨 - 물약구매 클릭 시작")
         for x, y in ZEUS_POTION_CLICKS:

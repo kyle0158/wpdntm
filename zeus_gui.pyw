@@ -159,6 +159,8 @@ class ZeusController(MacroLogicMixin, TelegramNotifierMixin):
         # [레이드 상태 디바운스용] fpdlem.png가 마지막으로 인식된 시각. None이면 아직 한
         # 번도 못 봄. 이 시각으로부터 유예시간 안에는 RAID 상태로 계속 취급합니다.
         self._raid_last_seen_time = None
+        # [물약구매용] 잡화상점이 안 열리는 상황이 몇 번 누적됐는지. 성공하면 0으로 리셋.
+        self._potion_shop_fail_streak = 0
 
         # [상태] IDLE(정지) / RUNNING(동작중) / PAUSED(일시정지)
         self.state = "IDLE"
@@ -610,6 +612,7 @@ class ZeusController(MacroLogicMixin, TelegramNotifierMixin):
             self._fallback_click_streak = 0
             self._subquest_wait_start = None
             self._raid_last_seen_time = None
+            self._potion_shop_fail_streak = 0
             self.log("- 시작")
             self._loop_thread = threading.Thread(target=self.run_loop, daemon=True)
             self._loop_thread.start()
@@ -619,6 +622,7 @@ class ZeusController(MacroLogicMixin, TelegramNotifierMixin):
             self._fallback_click_streak = 0
             self._subquest_wait_start = None
             self._raid_last_seen_time = None
+            self._potion_shop_fail_streak = 0
             self.log("- 재개")
         self._refresh_buttons()
 

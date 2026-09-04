@@ -104,6 +104,7 @@ SIMPLE_CLICK_IMAGES = [
     ('wkdckr.png',    (749, 362, 982, 487), True),
     ('ghkrdls.png',   (694, 471, 778, 530), False),
     ('tnfkr1.png',    (1102, 715, 1183, 759), False),
+    ('ckdx.png',      (1206, 41, 1256, 95), False),
 ]
 
 # ==========================================================
@@ -234,6 +235,10 @@ ZEUS_SHOP_OPEN_CHECK_IMG = ZEUS_AUTOBUY_IMG        # wkehdrnao.png (자동구매
 ZEUS_SHOP_OPEN_CHECK_REGION = ZEUS_AUTOBUY_REGION
 ZEUS_SHOP_OPEN_MAX_WAIT_SEC = 30.0
 ZEUS_SHOP_OPEN_POLL_SEC = 1.0  # [가정] 상점 열림 확인 주기
+# [잡화상점 미오픈 누적 허용횟수] 튜토리얼 등으로 anfdir0ro.png가 잠깐만 보였다가
+# 사라지는 경우가 있어서, 상점이 안 열리는 상황이 이 횟수만큼 누적돼야(중간에 다른
+# 이미지를 처리하는 턴이 있어도 계속 셈) 정지합니다. 한 번이라도 성공하면 리셋됩니다.
+ZEUS_POTION_SHOP_FAIL_MAX = 3
 ZEUS_POTION_CLICKS = [
     (70, 155),
     (680, 625),
