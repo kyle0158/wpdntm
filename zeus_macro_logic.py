@@ -18,6 +18,7 @@ import image_search
 from zeus_constants import (
     SIMPLE_CLICK_IMAGES, OFFSET_CLICK_IMAGES, CONDITIONAL_CLICK_IMAGES,
     ZEUS_HP_IMG, ZEUS_HP_REGION,
+    ZEUS_HP_INTENSIVE_RECHECK_DURATION_SEC, ZEUS_HP_INTENSIVE_RECHECK_INTERVAL_SEC,
     ZEUS_RETURN_CLICK1, ZEUS_RETURN_CLICK2, ZEUS_RETURN_REPEAT, ZEUS_RETURN_REPEAT_GAP_SEC,
     ZEUS_HP_RETURN_CHECK_IMG, ZEUS_HP_RETURN_CHECK_REGION,
     ZEUS_HP_RETURN_CHECK_WAIT_SEC, ZEUS_HP_RETURN_MAX_RETRIES,
@@ -146,8 +147,13 @@ class MacroLogicMixin:
             hp_found = image_search.locate_smart(ZEUS_HP_IMG, ZEUS_HP_REGION,
                                                   tolerance=tol, transwhite_tolerance=tw_tol)
             if not hp_found:
-                self._handle_hp_missing_sequence()
-                return
+                # [오탐 방지] 한 번 안 보였다고 바로 귀환로직으로 넘어가지 않고, 2초
+                # 동안 짧은 간격으로 집중 재확인합니다. 그 사이 한 번이라도 보이면
+                # 순간적인 인식 실패(오탐)로 보고 그냥 넘어갑니다.
+                hp_found = self._intensive_recheck_hp(tol, tw_tol)
+                if not hp_found:
+                    self._handle_hp_missing_sequence()
+                    return
 
         # 1) 단순 클릭 이미지들 - 새 이미지 추가는 SIMPLE_CLICK_IMAGES에 한 줄만 넣으면 됩니다.
         for img_name, region, transwhite in SIMPLE_CLICK_IMAGES:
@@ -419,6 +425,22 @@ class MacroLogicMixin:
             self._click_point_jittered(*ZEUS_RETURN_CLICK2)
             if i < ZEUS_RETURN_REPEAT - 1:
                 time.sleep(ZEUS_RETURN_REPEAT_GAP_SEC)
+
+    def _intensive_recheck_hp(self, tol, tw_tol):
+        """hp.png가 한 번 안 보였을 때, ZEUS_HP_INTENSIVE_RECHECK_DURATION_SEC(기본 2초)
+        동안 ZEUS_HP_INTENSIVE_RECHECK_INTERVAL_SEC 간격으로 짧게 재확인합니다.
+        그 사이 한 번이라도 보이면 즉시 True를 돌려주고, 끝까지 안 보이면 False."""
+        elapsed = 0.0
+        while elapsed < ZEUS_HP_INTENSIVE_RECHECK_DURATION_SEC:
+            if self.state == "IDLE":
+                return False
+            found = image_search.locate_smart(ZEUS_HP_IMG, ZEUS_HP_REGION,
+                                               tolerance=tol, transwhite_tolerance=tw_tol)
+            if found:
+                return True
+            self._sleep_interruptible(ZEUS_HP_INTENSIVE_RECHECK_INTERVAL_SEC)
+            elapsed += ZEUS_HP_INTENSIVE_RECHECK_INTERVAL_SEC
+        return False
 
     def _handle_hp_missing_sequence(self):
         """hp.png가 안 보일 때:
