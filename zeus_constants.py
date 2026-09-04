@@ -178,8 +178,9 @@ ZEUS_SKILLBOOK_CLICKS = [
 
 # ==========================================================
 # [HP 확인 / 귀환로직] anfdir0ro.png 또는 anfdiron.png 중 하나라도 있을 때(=사냥중일
-# 때)만 hp.png를 확인합니다(매 턴 제일 먼저). 화면 로딩 중처럼 둘 다 안 보이는 상태에서는
-# hp.png도 당연히 안 보이는데 그걸 "hp 없음"으로 오판하지 않게 하기 위함입니다.
+# 때), 그리고 dpxpfm.png가 보일 때(=로딩화면이 아닐 때)만 hp.png를 확인합니다(매 턴
+# 제일 먼저). 화면 로딩 중처럼 이 조건들이 안 맞으면 hp.png도 당연히 안 보이는데
+# 그걸 "hp 없음"으로 오판하지 않게 하기 위함입니다.
 #   0-1) hp.png가 안 보이면 바로 귀환로직으로 넘어가지 않고, 2초 동안 짧은 간격으로
 #        집중 재확인합니다. 그 사이 한 번이라도 보이면 오탐으로 보고 그냥 넘어갑니다.
 #   0-2) 2초 동안 끝까지 안 보이면 그제서야 귀환로직을 수행합니다. 귀환로직은
@@ -194,6 +195,10 @@ ZEUS_SKILLBOOK_CLICKS = [
 # ==========================================================
 ZEUS_HP_IMG = 'hp.png'
 ZEUS_HP_REGION = (179, 59, 214, 83)
+# [로딩화면 아님 증명] dpxpfm.png가 보이면 지금이 로딩화면이 아니라는 뜻입니다.
+# hunting_now(anfdir0ro/anfdiron)와 AND 조건으로 묶여서, 둘 다 만족해야 hp.png를 봅니다.
+ZEUS_NOT_LOADING_IMG = 'dpxpfm.png'
+ZEUS_NOT_LOADING_REGION = (237, 694, 287, 749)
 ZEUS_HP_INTENSIVE_RECHECK_DURATION_SEC = 2.0
 ZEUS_HP_INTENSIVE_RECHECK_INTERVAL_SEC = 0.3  # [가정]
 ZEUS_RETURN_CLICK1 = (45, 195)

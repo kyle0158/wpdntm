@@ -17,7 +17,7 @@ import time
 import image_search
 from zeus_constants import (
     SIMPLE_CLICK_IMAGES, OFFSET_CLICK_IMAGES, CONDITIONAL_CLICK_IMAGES,
-    ZEUS_HP_IMG, ZEUS_HP_REGION,
+    ZEUS_HP_IMG, ZEUS_HP_REGION, ZEUS_NOT_LOADING_IMG, ZEUS_NOT_LOADING_REGION,
     ZEUS_HP_INTENSIVE_RECHECK_DURATION_SEC, ZEUS_HP_INTENSIVE_RECHECK_INTERVAL_SEC,
     ZEUS_RETURN_CLICK1, ZEUS_RETURN_CLICK2, ZEUS_RETURN_REPEAT, ZEUS_RETURN_REPEAT_GAP_SEC,
     ZEUS_HP_RETURN_CHECK_IMG, ZEUS_HP_RETURN_CHECK_REGION,
@@ -132,16 +132,19 @@ class MacroLogicMixin:
         tol = self.get_tolerance()
         tw_tol = self.get_transwhite_tolerance()
 
-        # 0) [최우선 안전 체크] anfdir0ro.png / anfdiron.png 중 하나라도 있을 때만
-        # (=사냥중일 때만) hp.png를 확인합니다. 화면 로딩 중에는 둘 다 안 보여서 hp.png도
-        # 당연히 안 보이는데, 이걸 그냥 "hp 없음"으로 오판하면 안 되기 때문입니다.
+        # 0) [최우선 안전 체크] anfdir0ro.png / anfdiron.png 중 하나라도 있고(=사냥중),
+        # dpxpfm.png도 보일 때만(=로딩화면이 아닐 때만) hp.png를 확인합니다. 화면 로딩
+        # 중에는 이 조건들이 안 맞아서 hp.png도 당연히 안 보이는데, 이걸 그냥 "hp 없음"
+        # 으로 오판하면 안 되기 때문입니다.
         hunting_now = (
             image_search.locate_smart(ZEUS_POTION_TRIGGER_IMG, ZEUS_POTION_TRIGGER_REGION,
                                        tolerance=tol, transwhite_tolerance=tw_tol)
             or image_search.locate_smart(ZEUS_POTION_VERIFY_IMG, ZEUS_POTION_VERIFY_REGION,
                                           tolerance=tol, transwhite_tolerance=tw_tol)
         )
-        if hunting_now:
+        not_loading = image_search.locate_smart(ZEUS_NOT_LOADING_IMG, ZEUS_NOT_LOADING_REGION,
+                                                  tolerance=tol, transwhite_tolerance=tw_tol)
+        if hunting_now and not_loading:
             # hp.png가 정상적으로 보일 때는(대부분의 경우) 아무것도 안 하고 그냥 통과합니다 -
             # 여기서 활동 타이머를 건드리지 않아야 미인식 타임아웃 로직이 정상 작동합니다.
             hp_found = image_search.locate_smart(ZEUS_HP_IMG, ZEUS_HP_REGION,
